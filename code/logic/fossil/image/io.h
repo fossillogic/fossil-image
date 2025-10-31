@@ -52,8 +52,7 @@ typedef enum fossil_image_io_format_e {
     FOSSIL_IMAGE_IO_PPM,
     FOSSIL_IMAGE_IO_PGM,
     FOSSIL_IMAGE_IO_TGA,
-    FOSSIL_IMAGE_IO_RAW,
-    FOSSIL_IMAGE_IO_FOSSIL
+    FOSSIL_IMAGE_IO_RAW
 } fossil_image_io_format_t;
 
 /**
