@@ -28,5 +28,6 @@
 #include "process.h"
 #include "filter.h"
 #include "color.h"
+#include "analyze.h"
 
 #endif /* FOSSIL_IMAGE_FRAMEWORK_H */
