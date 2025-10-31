@@ -61,11 +61,11 @@ static bool load_bmp(const char *filename, fossil_image_t *out_image) {
     if (!f) return false;
 
     bmp_header_t hdr;
-    fread(&hdr, sizeof(hdr), 1, f);
+    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return false; }
     if (hdr.bfType != 0x4D42) { fclose(f); return false; }
 
     bmp_info_t info;
-    fread(&info, sizeof(info), 1, f);
+    if (fread(&info, sizeof(info), 1, f) != 1) { fclose(f); return false; }
     if ((info.biBitCount != 24 && info.biBitCount != 32) || info.biCompression != 0) { fclose(f); return false; }
 
     out_image->width = info.biWidth;
@@ -87,7 +87,12 @@ static bool load_bmp(const char *filename, fossil_image_t *out_image) {
     fseek(f, hdr.bfOffBits, SEEK_SET);
 
     for (int y = info.biHeight - 1; y >= 0; --y) {
-        fread(out_image->data + y * out_image->width * out_image->channels, out_image->channels, out_image->width, f);
+        if (fread(out_image->data + y * out_image->width * out_image->channels, out_image->channels, out_image->width, f) != (size_t)out_image->width) {
+            fclose(f);
+            free(out_image->data);
+            out_image->data = NULL;
+            return false;
+        }
         fseek(f, (4 - (out_image->width * out_image->channels) % 4) % 4, SEEK_CUR);
     }
 
@@ -160,11 +165,17 @@ static bool load_ppm(const char *filename, fossil_image_t *out_image) {
     if (!f) return false;
 
     char header[3];
-    fscanf(f, "%2s", header);
+    if (fscanf(f, "%2s", header) != 1) {
+        fclose(f);
+        return false;
+    }
 
     int w, h, maxv;
     if (strcmp(header, "P6") == 0) { // 8-bit RGB
-        fscanf(f, "%d %d %d%*c", &w, &h, &maxv);
+        if (fscanf(f, "%d %d %d%*c", &w, &h, &maxv) != 3) {
+            fclose(f);
+            return false;
+        }
         out_image->width = (uint32_t)w;
         out_image->height = (uint32_t)h;
         out_image->channels = 3;
@@ -174,17 +185,30 @@ static bool load_ppm(const char *filename, fossil_image_t *out_image) {
         if (maxv == 255) {
             out_image->format = FOSSIL_PIXEL_FORMAT_RGB24;
             out_image->data = (uint8_t *)malloc(out_image->size);
-            fread(out_image->data, 1, out_image->size, f);
+            if (!out_image->data || fread(out_image->data, 1, out_image->size, f) != (size_t)out_image->size) {
+                fclose(f);
+                free(out_image->data);
+                out_image->data = NULL;
+                return false;
+            }
         } else if (maxv == 65535) {
             out_image->format = FOSSIL_PIXEL_FORMAT_RGB48;
             out_image->data = (uint8_t *)malloc(out_image->size * 2);
-            fread(out_image->data, 2, out_image->size, f);
+            if (!out_image->data || fread(out_image->data, 2, out_image->size, f) != (size_t)out_image->size) {
+                fclose(f);
+                free(out_image->data);
+                out_image->data = NULL;
+                return false;
+            }
         } else {
             fclose(f);
             return false;
         }
     } else if (strcmp(header, "P5") == 0) { // 8/16-bit grayscale
-        fscanf(f, "%d %d %d%*c", &w, &h, &maxv);
+        if (fscanf(f, "%d %d %d%*c", &w, &h, &maxv) != 3) {
+            fclose(f);
+            return false;
+        }
         out_image->width = (uint32_t)w;
         out_image->height = (uint32_t)h;
         out_image->channels = 1;
@@ -194,11 +218,21 @@ static bool load_ppm(const char *filename, fossil_image_t *out_image) {
         if (maxv == 255) {
             out_image->format = FOSSIL_PIXEL_FORMAT_GRAY8;
             out_image->data = (uint8_t *)malloc(out_image->size);
-            fread(out_image->data, 1, out_image->size, f);
+            if (!out_image->data || fread(out_image->data, 1, out_image->size, f) != (size_t)out_image->size) {
+                fclose(f);
+                free(out_image->data);
+                out_image->data = NULL;
+                return false;
+            }
         } else if (maxv == 65535) {
             out_image->format = FOSSIL_PIXEL_FORMAT_GRAY16;
             out_image->data = (uint8_t *)malloc(out_image->size * 2);
-            fread(out_image->data, 2, out_image->size, f);
+            if (!out_image->data || fread(out_image->data, 2, out_image->size, f) != (size_t)out_image->size) {
+                fclose(f);
+                free(out_image->data);
+                out_image->data = NULL;
+                return false;
+            }
         } else {
             fclose(f);
             return false;
@@ -271,7 +305,10 @@ static bool load_raw(const char *filename, fossil_image_t *out_image) {
     if (!f) return false;
 
     raw_header_t hdr;
-    fread(&hdr, sizeof(hdr), 1, f);
+    if (fread(&hdr, sizeof(hdr), 1, f) != 1) {
+        fclose(f);
+        return false;
+    }
 
     out_image->width = hdr.width;
     out_image->height = hdr.height;
@@ -296,16 +333,21 @@ static bool load_raw(const char *filename, fossil_image_t *out_image) {
     }
 
     out_image->size = (size_t)hdr.width * hdr.height * hdr.channels;
-    out_image->data = (uint8_t *)malloc(out_image->size);
-    out_image->owns_data = true;
-
     if (!out_image->data) {
         fclose(f);
         return false;
     }
 
-    fread(out_image->data, 1, out_image->size, f);
+    if (fread(out_image->data, 1, out_image->size, f) != out_image->size) {
+        fclose(f);
+        free(out_image->data);
+        out_image->data = NULL;
+        return false;
+    }
 
+    // Set extended metadata to defaults
+    out_image->name[0] = '\0';
+    out_image->author[0] = '\0';
     // Set extended metadata to defaults
     out_image->name[0] = '\0';
     out_image->author[0] = '\0';
@@ -379,7 +421,12 @@ static bool load_gray8(const char *filename, fossil_image_t *out_image) {
     out_image->data = (uint8_t *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->data) { fclose(f); return false; }
-    fread(out_image->data, 1, out_image->size, f);
+    if (fread(out_image->data, 1, out_image->size, f) != out_image->size) {
+        fclose(f);
+        free(out_image->data);
+        out_image->data = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -409,7 +456,12 @@ static bool load_gray16(const char *filename, fossil_image_t *out_image) {
     out_image->data = (uint8_t *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->data) { fclose(f); return false; }
-    fread(out_image->data, 2, w * h, f);
+    if (fread(out_image->data, 2, w * h, f) != w * h) {
+        fclose(f);
+        free(out_image->data);
+        out_image->data = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -442,7 +494,12 @@ static bool load_rgb48(const char *filename, fossil_image_t *out_image) {
     out_image->data = (uint8_t *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->data) { fclose(f); return false; }
-    fread(out_image->data, 2, w * h * 3, f);
+    if (fread(out_image->data, 2, w * h * 3, f) != w * h * 3) {
+        fclose(f);
+        free(out_image->data);
+        out_image->data = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -475,7 +532,12 @@ static bool load_rgba64(const char *filename, fossil_image_t *out_image) {
     out_image->data = (uint8_t *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->data) { fclose(f); return false; }
-    fread(out_image->data, 2, w * h * 4, f);
+    if (fread(out_image->data, 2, w * h * 4, f) != w * h * 4) {
+        fclose(f);
+        free(out_image->data);
+        out_image->data = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -505,7 +567,12 @@ static bool load_float32(const char *filename, fossil_image_t *out_image) {
     out_image->fdata = (float *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->fdata) { fclose(f); return false; }
-    fread(out_image->fdata, sizeof(float), w * h, f);
+    if (fread(out_image->fdata, sizeof(float), w * h, f) != w * h) {
+        fclose(f);
+        free(out_image->fdata);
+        out_image->fdata = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -535,7 +602,12 @@ static bool load_float32_rgb(const char *filename, fossil_image_t *out_image) {
     out_image->fdata = (float *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->fdata) { fclose(f); return false; }
-    fread(out_image->fdata, sizeof(float), w * h * 3, f);
+    if (fread(out_image->fdata, sizeof(float), w * h * 3, f) != w * h * 3) {
+        fclose(f);
+        free(out_image->fdata);
+        out_image->fdata = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -565,7 +637,12 @@ static bool load_float32_rgba(const char *filename, fossil_image_t *out_image) {
     out_image->fdata = (float *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->fdata) { fclose(f); return false; }
-    fread(out_image->fdata, sizeof(float), w * h * 4, f);
+    if (fread(out_image->fdata, sizeof(float), w * h * 4, f) != w * h * 4) {
+        fclose(f);
+        free(out_image->fdata);
+        out_image->fdata = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -595,7 +672,12 @@ static bool load_indexed8(const char *filename, fossil_image_t *out_image) {
     out_image->data = (uint8_t *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->data) { fclose(f); return false; }
-    fread(out_image->data, 1, out_image->size, f);
+    if (fread(out_image->data, 1, out_image->size, f) != out_image->size) {
+        fclose(f);
+        free(out_image->data);
+        out_image->data = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
@@ -625,7 +707,12 @@ static bool load_yuv24(const char *filename, fossil_image_t *out_image) {
     out_image->data = (uint8_t *)malloc(out_image->size);
     out_image->owns_data = true;
     if (!out_image->data) { fclose(f); return false; }
-    fread(out_image->data, 1, out_image->size, f);
+    if (fread(out_image->data, 1, out_image->size, f) != out_image->size) {
+        fclose(f);
+        free(out_image->data);
+        out_image->data = NULL;
+        return false;
+    }
     fclose(f);
     return true;
 }
