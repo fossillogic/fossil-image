@@ -41,42 +41,71 @@ extern "C"
 /**
  * @brief Supported pixel formats.
  */
+
+/// Supported pixel formats
 typedef enum fossil_pixel_format_e {
-    FOSSIL_PIXEL_FORMAT_NONE = 0,
-    FOSSIL_PIXEL_FORMAT_GRAY8,   // 8-bit grayscale
-    FOSSIL_PIXEL_FORMAT_RGB24,   // 24-bit RGB
-    FOSSIL_PIXEL_FORMAT_RGBA32,  // 32-bit RGBA
-    FOSSIL_PIXEL_FORMAT_FLOAT32, // 32-bit float (grayscale or intensity map)
+    FOSSIL_PIXEL_FORMAT_NONE = 0,       ///< No format
+    FOSSIL_PIXEL_FORMAT_GRAY8,          ///< 8-bit grayscale
+    FOSSIL_PIXEL_FORMAT_GRAY16,         ///< 16-bit grayscale
+    FOSSIL_PIXEL_FORMAT_RGB24,          ///< 8-bit per channel RGB
+    FOSSIL_PIXEL_FORMAT_RGB48,          ///< 16-bit per channel RGB
+    FOSSIL_PIXEL_FORMAT_RGBA32,         ///< 8-bit per channel RGBA
+    FOSSIL_PIXEL_FORMAT_RGBA64,         ///< 16-bit per channel RGBA
+    FOSSIL_PIXEL_FORMAT_FLOAT32,        ///< 32-bit float grayscale/intensity
+    FOSSIL_PIXEL_FORMAT_FLOAT32_RGB,    ///< 32-bit float RGB
+    FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA,   ///< 32-bit float RGBA
+    FOSSIL_PIXEL_FORMAT_INDEXED8,       ///< 8-bit palette/indexed
+    FOSSIL_PIXEL_FORMAT_YUV24,          ///< 24-bit YUV (optional for video)
 } fossil_pixel_format_t;
 
 /**
  * @brief Interpolation mode for scaling and transformation.
  */
+
+/// Interpolation modes for scaling/rotation
 typedef enum fossil_interp_e {
     FOSSIL_INTERP_NEAREST = 0,
     FOSSIL_INTERP_LINEAR,
     FOSSIL_INTERP_CUBIC,
-    FOSSIL_INTERP_LANCZOS
+    FOSSIL_INTERP_LANCZOS,
+    FOSSIL_INTERP_BICUBIC,
+    FOSSIL_INTERP_MITCHELL,
+    FOSSIL_INTERP_BSPLINE
 } fossil_interp_t;
 
 /**
  * @brief Core image container for Fossil Image system.
  */
+
+/// Core image container
 typedef struct fossil_image_s {
-    uint32_t width;                ///< Image width in pixels
-    uint32_t height;               ///< Image height in pixels
-    uint32_t channels;             ///< Number of color channels (1, 3, or 4)
-    fossil_pixel_format_t format;  ///< Pixel format
+    uint32_t width;                    ///< Image width in pixels
+    uint32_t height;                   ///< Image height in pixels
+    uint32_t channels;                 ///< Number of channels (1-4 or more for indexed/multi-channel)
+    fossil_pixel_format_t format;      ///< Pixel format
 
-    uint8_t *data;                 ///< Raw pixel buffer
-    size_t   size;                 ///< Total buffer size in bytes
-
-    bool owns_data;                ///< Whether buffer should be freed on destroy
+    /// Flexible data buffer
+    union {
+        uint8_t *data;                 ///< 8/16-bit integer buffer
+        float   *fdata;                ///< 32-bit float buffer
+    };
+    size_t size;                        ///< Total buffer size in bytes
+    bool owns_data;                     ///< Free buffer on destroy
 
     // Optional metadata fields
-    char name[64];                 ///< Optional identifier or debug label
-    double dpi_x;                  ///< Horizontal resolution
-    double dpi_y;                  ///< Vertical resolution
+    char name[64];                      ///< Debug/identifier
+    char author[64];                    ///< Author or creator
+    double dpi_x;                       ///< Horizontal resolution
+    double dpi_y;                       ///< Vertical resolution
+    double exposure;                    ///< For HDR images
+    uint32_t channels_mask;             ///< Bitmask for multi-channel (custom)
+    void *userdata;                     ///< Optional user-defined buffer
+
+    // Extended origin metadata
+    bool is_ai_generated;               ///< True if image is AI-generated
+    char creation_os[32];               ///< OS used to create image (e.g., "Windows", "Linux", "MacOS")
+    char software[64];                  ///< Software or tool used to create image
+    char creation_date[32];             ///< Optional timestamp as string
 } fossil_image_t;
 
 // ======================================================
