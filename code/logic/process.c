@@ -45,7 +45,7 @@ size_t fossil_image_bytes_per_pixel(fossil_pixel_format_t format) {
     }
 }
 
-fossil_image_t *fossil_image_create(
+fossil_image_t *fossil_image_process_create(
     uint32_t width,
     uint32_t height,
     fossil_pixel_format_t format
@@ -80,7 +80,7 @@ fossil_image_t *fossil_image_create(
     return img;
 }
 
-void fossil_image_destroy(fossil_image_t *image) {
+void fossil_image_process_destroy(fossil_image_t *image) {
     if (!image) return;
     if (image->owns_data && image->data)
         free(image->data);
