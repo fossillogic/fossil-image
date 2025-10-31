@@ -63,7 +63,7 @@ bool fossil_image_io_save(
  * @param type_id Generator type string
  * @param width Width in pixels
  * @param height Height in pixels
- * @param channels Number of channels (1, 3, 4)
+ * @param format Pixel format (e.g., FOSSIL_PIXEL_FORMAT_RGB, FOSSIL_PIXEL_FORMAT_RGBA)
  * @param params Optional parameters as float array (depends on generator type)
  */
 bool fossil_image_io_generate(
@@ -71,7 +71,7 @@ bool fossil_image_io_generate(
     const char *type_id,
     uint32_t width,
     uint32_t height,
-    uint32_t channels,
+    fossil_pixel_format_t format,
     const float *params
 );
 
