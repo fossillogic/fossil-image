@@ -33,101 +33,46 @@ extern "C"
 #endif
 
 // ======================================================
-// Fossil Image — IO + Generator Sub-Library
+// Fossil Image — IO & Generator Sub-Library
 // ======================================================
 
 /**
- * @brief Supported IO formats by string identifier.
- *
- * String identifiers:
- *  - "bmp"   → Windows Bitmap
- *  - "ppm"   → Portable Pixmap (ASCII/Binary)
- *  - "pgm"   → Portable Graymap
- *  - "tga"   → Targa TrueVision
- *  - "raw"   → Raw pixel dump
- *  - "fossil"→ Fossil custom format (metadata + pixel data)
+ * @brief Load image from file by format string ID.
+ * Supported formats: "bmp", "ppm"
  */
-typedef enum fossil_image_io_format_e {
-    FOSSIL_IMAGE_IO_BMP = 0,
-    FOSSIL_IMAGE_IO_PPM,
-    FOSSIL_IMAGE_IO_PGM,
-    FOSSIL_IMAGE_IO_TGA,
-    FOSSIL_IMAGE_IO_RAW
-} fossil_image_io_format_t;
-
-/**
- * @brief Map a string (like "bmp") to an IO format enum.
- */
-fossil_image_io_format_t fossil_image_io_format_from_string(const char *id);
-
-/**
- * @brief Save image to disk in a given format.
- *
- * @param image   The image to save.
- * @param path    Destination file path.
- * @param format  String ID for format ("bmp", "ppm", etc.)
- */
-bool fossil_image_io_save(
-    const fossil_image_t *image,
-    const char *path,
-    const char *format
+bool fossil_image_load(
+    const char *filename,
+    const char *format_id,
+    fossil_image_t *out_image
 );
 
 /**
- * @brief Load image from file path, format auto-detected or forced.
- *
- * @param path    Source file path.
- * @param format  Optional string ID; if NULL, auto-detect from extension.
+ * @brief Save image to file by format string ID.
+ * Supported formats: "bmp", "ppm"
  */
-fossil_image_t *fossil_image_io_load(
-    const char *path,
-    const char *format
+bool fossil_image_save(
+    const char *filename,
+    const char *format_id,
+    const fossil_image_t *image
 );
-
-// ======================================================
-// Fossil Image — Generator Sub-Library
-// ======================================================
-
-/**
- * @brief Supported built-in generators by string identifier.
- *
- *  - "solid"     → Uniform color
- *  - "gradient"  → Linear gradient
- *  - "noise"     → Random noise
- *  - "checker"   → Checkerboard pattern
- *  - "circle"    → Circular mask / dot
- *  - "test"      → Fossil test pattern
- */
-typedef enum fossil_image_gen_type_e {
-    FOSSIL_IMAGE_GEN_SOLID = 0,
-    FOSSIL_IMAGE_GEN_GRADIENT,
-    FOSSIL_IMAGE_GEN_NOISE,
-    FOSSIL_IMAGE_GEN_CHECKER,
-    FOSSIL_IMAGE_GEN_CIRCLE,
-    FOSSIL_IMAGE_GEN_TEST
-} fossil_image_gen_type_t;
-
-/**
- * @brief Map a generator string (like "noise") to an enum.
- */
-fossil_image_gen_type_t fossil_image_gen_type_from_string(const char *id);
 
 /**
  * @brief Generate a new image procedurally.
- *
- * @param width    Image width
- * @param height   Image height
- * @param format   Pixel format
- * @param gen_id   String ID for generator type
- * @param param    Optional string for parameters (e.g. color, density)
+ * Supported generator types: "solid", "gradient", "checker", "noise"
+ * @param out_image Image to initialize
+ * @param type_id Generator type string
+ * @param width Width in pixels
+ * @param height Height in pixels
+ * @param channels Number of channels (1, 3, 4)
+ * @param params Optional parameters as float array (depends on generator type)
  */
-fossil_image_t *fossil_image_io_generate(
+bool fossil_image_generate(
+    fossil_image_t *out_image,
+    const char *type_id,
     uint32_t width,
     uint32_t height,
-    fossil_pixel_format_t format,
-    const char *gen_id,
-    const char *param
-);
+    uint32_t channels,
+    const float *params
 
 #ifdef __cplusplus
 }
