@@ -940,5 +940,116 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
         return true;
     }
 
+    // Circle
+    if (strcmp(type_id, "circle") == 0) {
+        float cx = width / 2.0f;
+        float cy = height / 2.0f;
+        float radius = (params && params[0] > 0.0f) ? params[0] : (width < height ? width : height) / 4.0f;
+        float edge = (params && params[1] > 0.0f) ? params[1] : 0.0f; // edge softness
+        float c_in[4] = {1.0f, 1.0f, 1.0f, 1.0f}, c_out[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        if (params && params[2]) for (uint32_t i = 0; i < channels; ++i) c_in[i] = params[2 + i];
+        if (params && params[2 + channels]) for (uint32_t i = 0; i < channels; ++i) c_out[i] = params[2 + channels + i];
+        for (uint32_t y = 0; y < height; ++y) {
+            for (uint32_t x = 0; x < width; ++x) {
+                float dx = x - cx, dy = y - cy;
+                float dist = sqrtf(dx * dx + dy * dy);
+                float t = 0.0f;
+                if (edge > 0.0f)
+                    t = fminf(fmaxf((dist - radius) / edge, 0.0f), 1.0f);
+                else
+                    t = dist > radius ? 1.0f : 0.0f;
+                for (uint32_t ch = 0; ch < channels; ++ch) {
+                    if (is_float)
+                        out_image->fdata[(y * width + x) * channels + ch] = (1.0f - t) * c_in[ch] + t * c_out[ch];
+                    else if (pixel_bytes == 2)
+                        ((uint16_t *)out_image->data)[(y * width + x) * channels + ch] =
+                            (uint16_t)(((1.0f - t) * c_in[ch] + t * c_out[ch]) * 65535.0f);
+                    else
+                        out_image->data[(y * width + x) * channels + ch] =
+                            (uint8_t)(((1.0f - t) * c_in[ch] + t * c_out[ch]) * 255.0f);
+                }
+            }
+        }
+        return true;
+    }
+
+    // Horizontal stripes
+    if (strcmp(type_id, "stripes") == 0) {
+        uint32_t stripe_height = (params && params[0] > 0.0f) ? (uint32_t)params[0] : 8;
+        float c1[4] = {1.0f, 1.0f, 1.0f, 1.0f}, c2[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        if (params && params[1]) for (uint32_t i = 0; i < channels; ++i) c1[i] = params[1 + i];
+        if (params && params[1 + channels]) for (uint32_t i = 0; i < channels; ++i) c2[i] = params[1 + channels + i];
+        for (uint32_t y = 0; y < height; ++y) {
+            bool is_c1 = ((y / stripe_height) % 2 == 0);
+            for (uint32_t x = 0; x < width; ++x) {
+                for (uint32_t ch = 0; ch < channels; ++ch) {
+                    if (is_float)
+                        out_image->fdata[(y * width + x) * channels + ch] = is_c1 ? c1[ch] : c2[ch];
+                    else if (pixel_bytes == 2)
+                        ((uint16_t *)out_image->data)[(y * width + x) * channels + ch] =
+                            (uint16_t)((is_c1 ? c1[ch] : c2[ch]) * 65535.0f);
+                    else
+                        out_image->data[(y * width + x) * channels + ch] =
+                            (uint8_t)((is_c1 ? c1[ch] : c2[ch]) * 255.0f);
+                }
+            }
+        }
+        return true;
+    }
+
+    // Vertical stripes
+    if (strcmp(type_id, "vstripes") == 0) {
+        uint32_t stripe_width = (params && params[0] > 0.0f) ? (uint32_t)params[0] : 8;
+        float c1[4] = {1.0f, 1.0f, 1.0f, 1.0f}, c2[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        if (params && params[1]) for (uint32_t i = 0; i < channels; ++i) c1[i] = params[1 + i];
+        if (params && params[1 + channels]) for (uint32_t i = 0; i < channels; ++i) c2[i] = params[1 + channels + i];
+        for (uint32_t y = 0; y < height; ++y) {
+            for (uint32_t x = 0; x < width; ++x) {
+                bool is_c1 = ((x / stripe_width) % 2 == 0);
+                for (uint32_t ch = 0; ch < channels; ++ch) {
+                    if (is_float)
+                        out_image->fdata[(y * width + x) * channels + ch] = is_c1 ? c1[ch] : c2[ch];
+                    else if (pixel_bytes == 2)
+                        ((uint16_t *)out_image->data)[(y * width + x) * channels + ch] =
+                            (uint16_t)((is_c1 ? c1[ch] : c2[ch]) * 65535.0f);
+                    else
+                        out_image->data[(y * width + x) * channels + ch] =
+                            (uint8_t)((is_c1 ? c1[ch] : c2[ch]) * 255.0f);
+                }
+            }
+        }
+        return true;
+    }
+
+    // Radial gradient
+    if (strcmp(type_id, "radial") == 0) {
+        float cx = width / 2.0f;
+        float cy = height / 2.0f;
+        float max_radius = sqrtf(cx * cx + cy * cy);
+        float start[4] = {0.0f}, end[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+        if (params) {
+            for (uint32_t i = 0; i < channels; ++i) start[i] = params[i];
+            for (uint32_t i = 0; i < channels; ++i) end[i] = params[channels + i];
+        }
+        for (uint32_t y = 0; y < height; ++y) {
+            for (uint32_t x = 0; x < width; ++x) {
+                float dx = x - cx, dy = y - cy;
+                float t = sqrtf(dx * dx + dy * dy) / max_radius;
+                t = fminf(fmaxf(t, 0.0f), 1.0f);
+                for (uint32_t ch = 0; ch < channels; ++ch) {
+                    if (is_float)
+                        out_image->fdata[(y * width + x) * channels + ch] = (1.0f - t) * start[ch] + t * end[ch];
+                    else if (pixel_bytes == 2)
+                        ((uint16_t *)out_image->data)[(y * width + x) * channels + ch] =
+                            (uint16_t)(((1.0f - t) * start[ch] + t * end[ch]) * 65535.0f);
+                    else
+                        out_image->data[(y * width + x) * channels + ch] =
+                            (uint8_t)(((1.0f - t) * start[ch] + t * end[ch]) * 255.0f);
+                }
+            }
+        }
+        return true;
+    }
+
     return false;
 }

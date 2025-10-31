@@ -58,7 +58,7 @@ bool fossil_image_io_save(
 
 /**
  * @brief Generate a new image procedurally.
- * Supported generator types: "solid", "gradient", "checker", "noise"
+ * Supported generator types: "solid", "gradient", "checker", "noise", "circle", "stripes", "vstripes", "radial"
  * @param out_image Image to initialize
  * @param type_id Generator type string
  * @param width Width in pixels
@@ -83,7 +83,54 @@ namespace fossil {
 
     namespace image {
 
+        class Io {
+        public:
+            /**
+             * @brief Load image from file by format string ID.
+             * Supported formats: "bmp", "ppm"
+             */
+            static bool load(
+            const char *filename,
+            const char *format_id,
+            fossil_image_t *out_image
+            ) {
+                return fossil_image_io_load(filename, format_id, out_image);
+            }
 
+            /**
+             * @brief Save image to file by format string ID.
+             * Supported formats: "bmp", "ppm"
+             */
+            static bool save(
+            const char *filename,
+            const char *format_id,
+            const fossil_image_t *image
+            ) {
+                return fossil_image_io_save(filename, format_id, image);
+            }
+
+            /**
+             * @brief Generate a new image procedurally.
+             * Supported generator types: "solid", "gradient", "checker", "noise", "circle", "stripes", "vstripes", "radial"
+             * @param out_image Image to initialize
+             * @param type_id Generator type string
+             * @param width Width in pixels
+             * @param height Height in pixels
+             * @param format Pixel format (e.g., FOSSIL_PIXEL_FORMAT_RGB, FOSSIL_PIXEL_FORMAT_RGBA)
+             * @param params Optional parameters as float array (depends on generator type)
+             */
+            static bool generate(
+            fossil_image_t *out_image,
+            const char *type_id,
+            uint32_t width,
+            uint32_t height,
+            fossil_pixel_format_t format,
+            const float *params
+            ) {
+                return fossil_image_io_generate(out_image, type_id, width, height, format, params);
+            }
+    
+        };
 
     } // namespace image
 
