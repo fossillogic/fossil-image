@@ -27,15 +27,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <stdint.h>
-#include <stdbool.h>
 
 // ======================================================
-// Fossil Image — IO & Generator Implementation
-// ======================================================
-
-// ======================================================
-// BMP Types (24-bit uncompressed)
+// BMP structures
 // ======================================================
 typedef struct {
     uint16_t bfType;
@@ -60,7 +54,7 @@ typedef struct {
 } bmp_info_t;
 
 // ======================================================
-// File I/O — BMP
+// BMP Load/Save (supports 24-bit RGB & 32-bit RGBA)
 // ======================================================
 static bool load_bmp(const char *filename, fossil_image_t *out_image) {
     FILE *f = fopen(filename, "rb");
@@ -72,13 +66,13 @@ static bool load_bmp(const char *filename, fossil_image_t *out_image) {
 
     bmp_info_t info;
     fread(&info, sizeof(info), 1, f);
-    if (info.biBitCount != 24 || info.biCompression != 0) { fclose(f); return false; }
+    if ((info.biBitCount != 24 && info.biBitCount != 32) || info.biCompression != 0) { fclose(f); return false; }
 
     out_image->width = info.biWidth;
     out_image->height = info.biHeight;
-    out_image->channels = 3;
-    out_image->format = FOSSIL_PIXEL_FORMAT_RGB24;
-    size_t size = (size_t)out_image->width * out_image->height * 3;
+    out_image->channels = (info.biBitCount == 24) ? 3 : 4;
+    out_image->format = (out_image->channels == 3) ? FOSSIL_PIXEL_FORMAT_RGB24 : FOSSIL_PIXEL_FORMAT_RGBA32;
+    size_t size = (size_t)out_image->width * out_image->height * out_image->channels;
     out_image->data = (uint8_t *)malloc(size);
     out_image->size = size;
     out_image->owns_data = true;
@@ -86,8 +80,8 @@ static bool load_bmp(const char *filename, fossil_image_t *out_image) {
     fseek(f, hdr.bfOffBits, SEEK_SET);
 
     for (int y = info.biHeight - 1; y >= 0; --y) {
-        fread(out_image->data + y * out_image->width * 3, 3, out_image->width, f);
-        fseek(f, (4 - (out_image->width * 3) % 4) % 4, SEEK_CUR);
+        fread(out_image->data + y * out_image->width * out_image->channels, out_image->channels, out_image->width, f);
+        fseek(f, (4 - (out_image->width * out_image->channels) % 4) % 4, SEEK_CUR);
     }
 
     fclose(f);
@@ -96,6 +90,7 @@ static bool load_bmp(const char *filename, fossil_image_t *out_image) {
 
 static bool save_bmp(const char *filename, const fossil_image_t *image) {
     if (!image || !image->data) return false;
+
     FILE *f = fopen(filename, "wb");
     if (!f) return false;
 
@@ -109,17 +104,17 @@ static bool save_bmp(const char *filename, const fossil_image_t *image) {
     info.biWidth = image->width;
     info.biHeight = image->height;
     info.biPlanes = 1;
-    info.biBitCount = 24;
+    info.biBitCount = (uint16_t)(image->channels * 8);
     info.biCompression = 0;
-    info.biSizeImage = image->width * image->height * 3;
+    info.biSizeImage = image->width * image->height * image->channels;
 
     fwrite(&hdr, sizeof(hdr), 1, f);
     fwrite(&info, sizeof(info), 1, f);
 
     for (int y = image->height - 1; y >= 0; --y) {
-        fwrite(image->data + y * image->width * 3, 3, image->width, f);
+        fwrite(image->data + y * image->width * image->channels, image->channels, image->width, f);
         uint8_t pad[3] = {0};
-        fwrite(pad, 1, (4 - (image->width * 3) % 4) % 4, f);
+        fwrite(pad, 1, (4 - (image->width * image->channels) % 4) % 4, f);
     }
 
     fclose(f);
@@ -127,7 +122,7 @@ static bool save_bmp(const char *filename, const fossil_image_t *image) {
 }
 
 // ======================================================
-// File I/O — PPM (binary P6)
+// PPM Load/Save (P6 RGB & P7 RGBA extension)
 // ======================================================
 static bool load_ppm(const char *filename, fossil_image_t *out_image) {
     FILE *f = fopen(filename, "rb");
@@ -135,16 +130,69 @@ static bool load_ppm(const char *filename, fossil_image_t *out_image) {
 
     char header[3];
     fscanf(f, "%2s", header);
-    if (strcmp(header, "P6") != 0) { fclose(f); return false; }
 
     int w, h, maxv;
-    fscanf(f, "%d %d %d%*c", &w, &h, &maxv);
+    if (strcmp(header, "P6") == 0) { // RGB
+        fscanf(f, "%d %d %d%*c", &w, &h, &maxv);
+        out_image->width = (uint32_t)w;
+        out_image->height = (uint32_t)h;
+        out_image->channels = 3;
+        out_image->format = FOSSIL_PIXEL_FORMAT_RGB24;
+        out_image->size = w * h * 3;
+        out_image->data = (uint8_t *)malloc(out_image->size);
+        out_image->owns_data = true;
+        fread(out_image->data, 1, out_image->size, f);
+    } else { fclose(f); return false; }
 
-    out_image->width = (uint32_t)w;
-    out_image->height = (uint32_t)h;
-    out_image->channels = 3;
-    out_image->format = FOSSIL_PIXEL_FORMAT_RGB24;
-    out_image->size = w * h * 3;
+    fclose(f);
+    return true;
+}
+
+static bool save_ppm(const char *filename, const fossil_image_t *image) {
+    if (!image || !image->data) return false;
+
+    FILE *f = fopen(filename, "wb");
+    if (!f) return false;
+
+    if (image->channels == 3) {
+        fprintf(f, "P6\n%d %d\n255\n", image->width, image->height);
+        fwrite(image->data, 1, image->width * image->height * 3, f);
+    } else if (image->channels == 4) {
+        // Use P6 with alpha stripped, or define P7 extension
+        fprintf(f, "P6\n%d %d\n255\n", image->width, image->height);
+        for (size_t i = 0; i < image->width * image->height; ++i) {
+            fwrite(&image->data[i*4], 1, 3, f);
+        }
+    }
+
+    fclose(f);
+    return true;
+}
+
+// ======================================================
+// RAW Load/Save with header (width, height, channels)
+// ======================================================
+typedef struct {
+    uint32_t width;
+    uint32_t height;
+    uint32_t channels;
+} raw_header_t;
+
+static bool load_raw(const char *filename, fossil_image_t *out_image) {
+    if (!filename) return false;
+    FILE *f = fopen(filename, "rb");
+    if (!f) return false;
+
+    raw_header_t hdr;
+    fread(&hdr, sizeof(hdr), 1, f);
+
+    out_image->width = hdr.width;
+    out_image->height = hdr.height;
+    out_image->channels = hdr.channels;
+    out_image->format = (hdr.channels == 1) ? FOSSIL_PIXEL_FORMAT_GRAY8 :
+                        (hdr.channels == 3) ? FOSSIL_PIXEL_FORMAT_RGB24 :
+                        FOSSIL_PIXEL_FORMAT_RGBA32;
+    out_image->size = (size_t)hdr.width * hdr.height * hdr.channels;
     out_image->data = (uint8_t *)malloc(out_image->size);
     out_image->owns_data = true;
 
@@ -153,74 +201,46 @@ static bool load_ppm(const char *filename, fossil_image_t *out_image) {
     return true;
 }
 
-static bool save_ppm(const char *filename, const fossil_image_t *image) {
-    if (!image || !image->data) return false;
-    FILE *f = fopen(filename, "wb");
-    if (!f) return false;
-
-    fprintf(f, "P6\n%d %d\n255\n", image->width, image->height);
-    fwrite(image->data, 1, image->width * image->height * image->channels, f);
-    fclose(f);
-    return true;
-}
-
-// ======================================================
-// File I/O — Raw Grayscale / Gray+Alpha
-// ======================================================
-static bool load_raw(const char *filename, fossil_image_t *out_image, uint32_t width, uint32_t height, uint32_t channels) {
-    if (channels != 1 && channels != 2) return false;
-    FILE *f = fopen(filename, "rb");
-    if (!f) return false;
-    size_t size = width * height * channels;
-    out_image->data = (uint8_t *)malloc(size);
-    if (!out_image->data) { fclose(f); return false; }
-    fread(out_image->data, 1, size, f);
-    fclose(f);
-
-    out_image->width = width;
-    out_image->height = height;
-    out_image->channels = channels;
-    out_image->size = size;
-    out_image->owns_data = true;
-    out_image->format = (channels == 1) ? FOSSIL_PIXEL_FORMAT_GRAY8 : FOSSIL_PIXEL_FORMAT_RGBA32;
-    return true;
-}
-
 static bool save_raw(const char *filename, const fossil_image_t *image) {
-    if (!image || !image->data) return false;
+    if (!filename || !image || !image->data) return false;
     FILE *f = fopen(filename, "wb");
     if (!f) return false;
+
+    raw_header_t hdr = {image->width, image->height, image->channels};
+    fwrite(&hdr, sizeof(hdr), 1, f);
     fwrite(image->data, 1, image->size, f);
+
     fclose(f);
     return true;
 }
 
 // ======================================================
-// Generic Load/Save — Extended Formats
+// Generic Load/Save
 // ======================================================
-bool fossil_image_load(const char *filename, const char *format_id, fossil_image_t *out_image) {
+bool fossil_image_io_load(const char *filename, const char *format_id, fossil_image_t *out_image) {
+    if (!format_id || !out_image) return false;
+
     if (strcmp(format_id, "bmp") == 0) return load_bmp(filename, out_image);
     if (strcmp(format_id, "ppm") == 0) return load_ppm(filename, out_image);
-    if (strcmp(format_id, "raw") == 0) {
-        // for raw, you must provide width/height/channels via global or separate API
-        return false; // placeholder
-    }
+    if (strcmp(format_id, "raw") == 0) return load_raw(filename);
+
     return false;
 }
 
-bool fossil_image_save(const char *filename, const char *format_id, const fossil_image_t *image) {
+bool fossil_image_io_save(const char *filename, const char *format_id, const fossil_image_t *image) {
+    if (!format_id || !image) return false;
+
     if (strcmp(format_id, "bmp") == 0) return save_bmp(filename, image);
     if (strcmp(format_id, "ppm") == 0) return save_ppm(filename, image);
     if (strcmp(format_id, "raw") == 0) return save_raw(filename, image);
+
     return false;
 }
 
 // ======================================================
 // Image Generators
 // ======================================================
-bool fossil_image_generate(fossil_image_t *out_image, const char *type_id,
-                           uint32_t width, uint32_t height, uint32_t channels,
-                           const float *params) {
+bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, uint32_t width, uint32_t height, uint32_t channels, const float *params) {
     if (!out_image || width == 0 || height == 0 || channels == 0 || channels > 4)
         return false;
 
@@ -238,7 +258,7 @@ bool fossil_image_generate(fossil_image_t *out_image, const char *type_id,
     if (strcmp(type_id, "solid") == 0) {
         uint8_t c[4] = {0};
         if (params) for (uint32_t i = 0; i < channels; ++i)
-            c[i] = (uint8_t)(fminf(fmaxf(params[i], 0.0f), 255.0f));
+            c[i] = (uint8_t)fminf(fmaxf(params[i], 0.0f), 255.0f);
         for (size_t i = 0; i < out_image->size; i += channels)
             for (uint32_t ch = 0; ch < channels; ++ch)
                 out_image->data[i + ch] = c[ch];
