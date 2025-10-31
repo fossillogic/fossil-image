@@ -40,7 +40,7 @@ extern "C"
  * @brief Load image from file by format string ID.
  * Supported formats: "bmp", "ppm"
  */
-bool fossil_image_load(
+bool fossil_image_io_load(
     const char *filename,
     const char *format_id,
     fossil_image_t *out_image
@@ -50,7 +50,7 @@ bool fossil_image_load(
  * @brief Save image to file by format string ID.
  * Supported formats: "bmp", "ppm"
  */
-bool fossil_image_save(
+bool fossil_image_io_save(
     const char *filename,
     const char *format_id,
     const fossil_image_t *image
@@ -66,13 +66,14 @@ bool fossil_image_save(
  * @param channels Number of channels (1, 3, 4)
  * @param params Optional parameters as float array (depends on generator type)
  */
-bool fossil_image_generate(
+bool fossil_image_io_generate(
     fossil_image_t *out_image,
     const char *type_id,
     uint32_t width,
     uint32_t height,
     uint32_t channels,
     const float *params
+);
 
 #ifdef __cplusplus
 }
