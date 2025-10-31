@@ -106,18 +106,66 @@ bool fossil_image_process_resize(
     if (!new_data)
         return false;
 
-    // Nearest-neighbor scaling (placeholder)
-    for (uint32_t y = 0; y < new_h; ++y) {
-        for (uint32_t x = 0; x < new_w; ++x) {
-            uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
-            uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
-            size_t src_i = (src_y * image->width + src_x) * channels;
-            size_t dst_i = (y * new_w + x) * channels;
-            // Ensure we do not read/write out of bounds
-            if (src_i + channels <= image->size && dst_i + channels <= new_size) {
-                memcpy(&new_data[dst_i], &image->data[src_i], channels);
+    switch (mode) {
+        case FOSSIL_INTERP_NEAREST:
+            // Nearest-neighbor scaling
+            for (uint32_t y = 0; y < new_h; ++y) {
+                for (uint32_t x = 0; x < new_w; ++x) {
+                    uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
+                    uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
+                    size_t src_i = (src_y * image->width + src_x) * channels;
+                    size_t dst_i = (y * new_w + x) * channels;
+                    if (src_i + channels <= image->size && dst_i + channels <= new_size) {
+                        memcpy(&new_data[dst_i], &image->data[src_i], channels);
+                    }
+                }
             }
-        }
+            break;
+        case FOSSIL_INTERP_LINEAR:
+            // Bilinear interpolation (simple implementation)
+            for (uint32_t y = 0; y < new_h; ++y) {
+                float src_yf = (float)y * image->height / new_h;
+                uint32_t y0 = (uint32_t)src_yf;
+                uint32_t y1 = (y0 + 1 < image->height) ? y0 + 1 : y0;
+                float wy = src_yf - y0;
+                for (uint32_t x = 0; x < new_w; ++x) {
+                    float src_xf = (float)x * image->width / new_w;
+                    uint32_t x0 = (uint32_t)src_xf;
+                    uint32_t x1 = (x0 + 1 < image->width) ? x0 + 1 : x0;
+                    float wx = src_xf - x0;
+                    size_t dst_i = (y * new_w + x) * channels;
+                    for (size_t c = 0; c < channels; ++c) {
+                        uint8_t p00 = image->data[(y0 * image->width + x0) * channels + c];
+                        uint8_t p01 = image->data[(y0 * image->width + x1) * channels + c];
+                        uint8_t p10 = image->data[(y1 * image->width + x0) * channels + c];
+                        uint8_t p11 = image->data[(y1 * image->width + x1) * channels + c];
+                        float val = (1 - wx) * (1 - wy) * p00 +
+                                    wx * (1 - wy) * p01 +
+                                    (1 - wx) * wy * p10 +
+                                    wx * wy * p11;
+                        new_data[dst_i + c] = (uint8_t)(val + 0.5f);
+                    }
+                }
+            }
+            break;
+        case FOSSIL_INTERP_CUBIC:
+        case FOSSIL_INTERP_LANCZOS:
+            // Not implemented, fallback to nearest
+            for (uint32_t y = 0; y < new_h; ++y) {
+                for (uint32_t x = 0; x < new_w; ++x) {
+                    uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
+                    uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
+                    size_t src_i = (src_y * image->width + src_x) * channels;
+                    size_t dst_i = (y * new_w + x) * channels;
+                    if (src_i + channels <= image->size && dst_i + channels <= new_size) {
+                        memcpy(&new_data[dst_i], &image->data[src_i], channels);
+                    }
+                }
+            }
+            break;
+        default:
+            free(new_data);
+            return false;
     }
 
     free(image->data);
@@ -175,7 +223,6 @@ bool fossil_image_process_flip(
     uint32_t w = image->width;
     uint32_t h = image->height;
     size_t c = image->channels;
-    size_t row_size = w * c;
     uint8_t *temp = (uint8_t *)calloc(image->size, sizeof(uint8_t));
     if (!temp)
         return false;
