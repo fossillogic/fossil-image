@@ -8,7 +8,9 @@ fossil_image_lib = library('fossil_image',
         'process.c',
         'analyze.c',
         'filter.c',
-        'color.c'
+        'color.c',
+        'draw.c',
+        'io.c'
         ),
     install: true,
     dependencies: [cc.find_library('m', required: false)],
