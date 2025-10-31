@@ -393,8 +393,6 @@ bool fossil_image_process_crop(
         if (!new_fdata)
             return false;
 
-        size_t row_stride_src = image->width * channels;
-        size_t row_stride_dst = w * channels;
         for (uint32_t j = 0; j < h; ++j) {
             size_t src_idx = ((y + j) * image->width + x) * channels;
             size_t dst_idx = j * w * channels;
@@ -421,8 +419,6 @@ bool fossil_image_process_crop(
                 memcpy(&new_data[dst_idx], &src[src_idx], w * channels * sizeof(uint8_t));
             }
         }
-        free(image->data);
-        image->data = new_data;
     }
 
     image->width = w;
@@ -659,8 +655,6 @@ bool fossil_image_process_composite(
         dst->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA
     );
 
-    size_t bytes_per_pixel = fossil_image_bytes_per_pixel(dst->format);
-
     if (is_float) {
         if (!dst->fdata || !overlay->fdata)
             return false;
@@ -686,8 +680,6 @@ bool fossil_image_process_composite(
             return false;
         uint16_t *d16 = (uint16_t *)dst->data;
         uint16_t *s16 = (uint16_t *)overlay->data;
-        size_t row_stride_dst = dst->width * c;
-        size_t row_stride_src = overlay->width * c;
         for (uint32_t j = 0; j < h; ++j) {
             for (uint32_t i = 0; i < w; ++i) {
                 uint32_t dx = x + i;

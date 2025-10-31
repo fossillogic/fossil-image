@@ -31,7 +31,7 @@
 // Fossil Image — Draw Sub-Library Implementation
 // ======================================================
 
-static inline void fossil_draw_set_pixel(fossil_image_t *image, uint32_t x, uint32_t y, const uint8_t *color) {
+static inline void fossil_draw_set_pixel(fossil_image_t *image, uint32_t x, uint32_t y, const void *color) {
     if (!image) return;
     if (x >= image->width || y >= image->height) return;
 
@@ -45,7 +45,7 @@ static inline void fossil_draw_set_pixel(fossil_image_t *image, uint32_t x, uint
         case FOSSIL_PIXEL_FORMAT_YUV24:
             if (!image->data) return;
             for (uint32_t c = 0; c < image->channels; ++c)
-                image->data[idx + c] = color[c];
+                image->data[idx + c] = ((const uint8_t *)color)[c];
             break;
 
         case FOSSIL_PIXEL_FORMAT_GRAY16:
