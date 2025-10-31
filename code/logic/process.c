@@ -388,9 +388,7 @@ bool fossil_image_process_threshold(fossil_image_t *image, uint8_t threshold) {
     if (!image || !image->data)
         return false;
 
-    // Ensure threshold is within valid range
-    if (threshold > 255)
-        threshold = 255;
+    // Threshold is always within 0-255 for uint8_t
 
     size_t pixels = image->width * image->height * image->channels;
     for (size_t i = 0; i < pixels; ++i) {
