@@ -100,6 +100,10 @@ bool fossil_image_process_resize(
     if (!image || !image->data)
         return false;
 
+    // Check for invalid resize dimensions
+    if (new_w == 0 || new_h == 0)
+        return false;
+
     size_t channels = image->channels;
     size_t new_size = (size_t)new_w * (size_t)new_h * channels;
     uint8_t *new_data = (uint8_t *)calloc(new_size, sizeof(uint8_t));
