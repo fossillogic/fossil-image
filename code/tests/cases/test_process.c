@@ -134,7 +134,7 @@ FOSSIL_TEST(c_test_image_process_rotate_90) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
     ASSUME_NOT_CNULL(img);
     img->data[0] = 1; img->data[3] = 2; img->data[6] = 3; img->data[9] = 4;
-    bool ok = fossil_image_process_rotate(img, 90.0f);
+    bool ok = fossil_image_process_rotate(img, 90.0f, FOSSIL_INTERP_NEAREST);
     ASSUME_ITS_TRUE(ok);
     fossil_image_process_destroy(img);
 }

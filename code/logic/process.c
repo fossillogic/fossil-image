@@ -409,8 +409,6 @@ bool fossil_image_process_crop(
         if (!new_data)
             return false;
 
-        size_t row_stride_src = image->width * channels;
-        size_t row_stride_dst = w * channels;
         for (uint32_t j = 0; j < h; ++j) {
             size_t src_idx = ((y + j) * image->width + x) * channels;
             size_t dst_idx = j * w * channels;

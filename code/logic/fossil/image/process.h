@@ -214,11 +214,13 @@ bool fossil_image_process_flip(
  *
  * @param image Pointer to the fossil_image_t structure to rotate.
  * @param degrees Angle in degrees to rotate (positive is clockwise).
+ * @param interp Interpolation mode for resampling.
  * @return true if successful, false otherwise.
  */
 bool fossil_image_process_rotate(
     fossil_image_t *image,
-    float degrees
+    float degrees,
+    fossil_interp_t interp
 );
 
 /**
@@ -428,10 +430,11 @@ namespace fossil {
              *
              * @param image Pointer to the fossil_image_t structure to rotate.
              * @param degrees Angle in degrees to rotate (positive is clockwise).
+             * @param interp Interpolation mode for resampling.
              * @return true if successful, false otherwise.
              */
-            static bool rotate(fossil_image_t *image, float degrees) {
-                return fossil_image_process_rotate(image, degrees);
+            static bool rotate(fossil_image_t *image, float degrees, fossil_interp_t interp) {
+                return fossil_image_process_rotate(image, degrees, interp);
             }
 
             /**

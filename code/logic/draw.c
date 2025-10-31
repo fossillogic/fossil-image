@@ -472,7 +472,6 @@ bool fossil_image_draw_text(fossil_image_t *image, uint32_t x, uint32_t y, const
     if (!image || !text || !color)
         return false;
 
-    uint32_t start_x = x;
     for (const char *p = text; *p; ++p) {
         unsigned char ch = *p;
         if (ch < 32 || ch > 127) ch = '?';
