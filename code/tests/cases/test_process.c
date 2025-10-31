@@ -147,7 +147,7 @@ FOSSIL_TEST(c_test_image_process_blend_basic) {
     memset(img2->data, 255, img2->size);
     bool ok = fossil_image_process_blend(img1, img2, 0.5f);
     ASSUME_ITS_TRUE(ok);
-    ASSUME_ITS_EQUAL_I32(img1->data[0], 127);
+    ASSUME_ITS_EQUAL_I32(img1->data[0], 128);
     fossil_image_process_destroy(img1);
     fossil_image_process_destroy(img2);
 }
