@@ -26,8 +26,10 @@
 #define FOSSIL_IMAGE_FRAMEWORK_H
 
 #include "process.h"
+#include "analyze.h"
 #include "filter.h"
 #include "color.h"
-#include "analyze.h"
+#include "draw.h"
+#include "io.h"
 
 #endif /* FOSSIL_IMAGE_FRAMEWORK_H */
