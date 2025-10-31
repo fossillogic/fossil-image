@@ -32,96 +32,300 @@
 // ======================================================
 
 bool fossil_image_analyze_histogram(const fossil_image_t *image, uint32_t *out_hist) {
-    if (!image || !image->data || !out_hist)
+    if (!image || !out_hist)
         return false;
 
     size_t bins = 256 * image->channels;
     memset(out_hist, 0, bins * sizeof(uint32_t));
 
     size_t pixels = (size_t)image->width * image->height;
-    for (size_t i = 0; i < pixels; ++i) {
-        for (uint32_t c = 0; c < image->channels; ++c) {
-            uint8_t val = image->data[i * image->channels + c];
-            out_hist[c * 256 + val]++;
-        }
+
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            if (!image->data)
+                return false;
+            for (size_t i = 0; i < pixels; ++i) {
+                for (uint32_t c = 0; c < image->channels; ++c) {
+                    uint8_t val = image->data[i * image->channels + c];
+                    out_hist[c * 256 + val]++;
+                }
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            if (!image->data)
+                return false;
+            for (size_t i = 0; i < pixels; ++i) {
+                for (uint32_t c = 0; c < image->channels; ++c) {
+                    uint16_t *idata = (uint16_t *)image->data;
+                    uint16_t val = idata[i * image->channels + c];
+                    uint8_t bin = (uint8_t)(val >> 8); // Map 16-bit to 8-bit bin
+                    out_hist[c * 256 + bin]++;
+                }
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            if (!image->fdata)
+                return false;
+            for (size_t i = 0; i < pixels; ++i) {
+                for (uint32_t c = 0; c < image->channels; ++c) {
+                    float val = image->fdata[i * image->channels + c];
+                    uint8_t bin = (uint8_t)(fmaxf(0.0f, fminf(val, 1.0f)) * 255.0f);
+                    out_hist[c * 256 + bin]++;
+                }
+            }
+            break;
+
+        default:
+            return false;
     }
 
     return true;
 }
 
 bool fossil_image_analyze_mean_stddev(const fossil_image_t *image, double *mean, double *stddev) {
-    if (!image || !image->data || !mean || !stddev)
+    if (!image || !mean || !stddev)
         return false;
 
     size_t npixels = (size_t)image->width * image->height;
     uint32_t ch = image->channels;
 
-    for (uint32_t c = 0; c < ch; ++c) {
-        double sum = 0.0;
-        double sum_sq = 0.0;
-        for (size_t i = 0; i < npixels; ++i) {
-            double v = (double)image->data[i * ch + c];
-            sum += v;
-            sum_sq += v * v;
-        }
-        mean[c] = sum / npixels;
-        double variance = (sum_sq / npixels) - (mean[c] * mean[c]);
-        stddev[c] = sqrt(fmax(variance, 0.0));
+    // Handle different pixel formats
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            if (!image->data)
+                return false;
+            for (uint32_t c = 0; c < ch; ++c) {
+                double sum = 0.0, sum_sq = 0.0;
+                for (size_t i = 0; i < npixels; ++i) {
+                    double v = (double)image->data[i * ch + c];
+                    sum += v;
+                    sum_sq += v * v;
+                }
+                mean[c] = sum / npixels;
+                double variance = (sum_sq / npixels) - (mean[c] * mean[c]);
+                stddev[c] = sqrt(fmax(variance, 0.0));
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            if (!image->data)
+                return false;
+            for (uint32_t c = 0; c < ch; ++c) {
+                double sum = 0.0, sum_sq = 0.0;
+                uint16_t *idata = (uint16_t *)image->data;
+                for (size_t i = 0; i < npixels; ++i) {
+                    double v = (double)idata[i * ch + c];
+                    sum += v;
+                    sum_sq += v * v;
+                }
+                mean[c] = sum / npixels;
+                double variance = (sum_sq / npixels) - (mean[c] * mean[c]);
+                stddev[c] = sqrt(fmax(variance, 0.0));
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            if (!image->fdata)
+                return false;
+            for (uint32_t c = 0; c < ch; ++c) {
+                double sum = 0.0, sum_sq = 0.0;
+                for (size_t i = 0; i < npixels; ++i) {
+                    double v = (double)image->fdata[i * ch + c];
+                    sum += v;
+                    sum_sq += v * v;
+                }
+                mean[c] = sum / npixels;
+                double variance = (sum_sq / npixels) - (mean[c] * mean[c]);
+                stddev[c] = sqrt(fmax(variance, 0.0));
+            }
+            break;
+
+        default:
+            return false;
     }
+
     return true;
 }
 
 bool fossil_image_analyze_brightness(const fossil_image_t *image, double *out_brightness) {
-    if (!image || !image->data || !out_brightness)
+    if (!image || !out_brightness)
         return false;
 
     size_t npixels = (size_t)image->width * image->height;
     double total = 0.0;
 
-    if (image->channels == 1) {
-        for (size_t i = 0; i < npixels; ++i)
-            total += image->data[i];
-    } else {
-        for (size_t i = 0; i < npixels; ++i) {
-            uint8_t r = image->data[i * image->channels + 0];
-            uint8_t g = image->data[i * image->channels + 1];
-            uint8_t b = image->data[i * image->channels + 2];
-            total += 0.299 * r + 0.587 * g + 0.114 * b;
-        }
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            if (!image->data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i)
+                total += image->data[i];
+            *out_brightness = total / (npixels * 255.0);
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+            if (!image->data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                uint8_t r = image->data[i * image->channels + 0];
+                uint8_t g = image->data[i * image->channels + 1];
+                uint8_t b = image->data[i * image->channels + 2];
+                total += 0.299 * r + 0.587 * g + 0.114 * b;
+            }
+            *out_brightness = total / (npixels * 255.0);
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+            if (!image->data)
+                return false;
+            {
+                uint16_t *idata = (uint16_t *)image->data;
+                for (size_t i = 0; i < npixels; ++i)
+                    total += idata[i];
+                *out_brightness = total / (npixels * 65535.0);
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            if (!image->data)
+                return false;
+            {
+                uint16_t *idata = (uint16_t *)image->data;
+                for (size_t i = 0; i < npixels; ++i) {
+                    uint16_t r = idata[i * image->channels + 0];
+                    uint16_t g = idata[i * image->channels + 1];
+                    uint16_t b = idata[i * image->channels + 2];
+                    total += 0.299 * r + 0.587 * g + 0.114 * b;
+                }
+                *out_brightness = total / (npixels * 65535.0);
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+            if (!image->fdata)
+                return false;
+            for (size_t i = 0; i < npixels; ++i)
+                total += image->fdata[i];
+            *out_brightness = total / npixels;
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            if (!image->fdata)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                float r = image->fdata[i * image->channels + 0];
+                float g = image->fdata[i * image->channels + 1];
+                float b = image->fdata[i * image->channels + 2];
+                total += 0.299f * r + 0.587f * g + 0.114f * b;
+            }
+            *out_brightness = total / npixels;
+            break;
+
+        default:
+            return false;
     }
 
-    *out_brightness = (total / (npixels * 255.0));
     return true;
 }
 
 bool fossil_image_analyze_contrast(const fossil_image_t *image, double *out_contrast) {
-    if (!image || !image->data || !out_contrast)
+    if (!image || !out_contrast)
         return false;
 
     double mean[4] = {0}, stddev[4] = {0};
-    if (!fossil_image_analyze_mean_stddev(image, mean, stddev))
-        return false;
+    bool ok = false;
 
-    double total = 0.0;
-    for (uint32_t c = 0; c < image->channels; ++c)
-        total += stddev[c];
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            if (!image->data)
+                return false;
+            ok = fossil_image_analyze_mean_stddev(image, mean, stddev);
+            if (!ok) return false;
+            {
+                double total = 0.0;
+                for (uint32_t c = 0; c < image->channels; ++c)
+                    total += stddev[c];
+                *out_contrast = (total / image->channels) / 255.0;
+            }
+            break;
 
-    *out_contrast = (total / image->channels) / 255.0;
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            if (!image->data)
+                return false;
+            ok = fossil_image_analyze_mean_stddev(image, mean, stddev);
+            if (!ok) return false;
+            {
+                double total = 0.0;
+                for (uint32_t c = 0; c < image->channels; ++c)
+                    total += stddev[c];
+                *out_contrast = (total / image->channels) / 65535.0;
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            if (!image->fdata)
+                return false;
+            ok = fossil_image_analyze_mean_stddev(image, mean, stddev);
+            if (!ok) return false;
+            {
+                double total = 0.0;
+                for (uint32_t c = 0; c < image->channels; ++c)
+                    total += stddev[c];
+                *out_contrast = total / image->channels;
+            }
+            break;
+
+        default:
+            return false;
+    }
+
     return true;
 }
 
 bool fossil_image_analyze_edge_sobel(const fossil_image_t *src, fossil_image_t *dst) {
-    if (!src || !src->data || !dst)
+    if (!src || !dst)
         return false;
 
-    if (src->channels < 1)
+    uint32_t w = src->width, h = src->height;
+    if (w < 3 || h < 3)
         return false;
 
-    dst->width = src->width;
-    dst->height = src->height;
+    dst->width = w;
+    dst->height = h;
     dst->channels = 1;
     dst->format = FOSSIL_PIXEL_FORMAT_GRAY8;
-    dst->size = (size_t)dst->width * dst->height;
+    dst->size = (size_t)w * h;
     dst->data = (uint8_t *)calloc(dst->size, 1);
     dst->owns_data = true;
 
@@ -131,26 +335,63 @@ bool fossil_image_analyze_edge_sobel(const fossil_image_t *src, fossil_image_t *
     const int gx[3][3] = { {-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1} };
     const int gy[3][3] = { {-1,-2,-1}, { 0, 0, 0}, { 1, 2, 1} };
 
-    for (uint32_t y = 1; y < src->height - 1; ++y) {
-        for (uint32_t x = 1; x < src->width - 1; ++x) {
+    for (uint32_t y = 1; y < h - 1; ++y) {
+        for (uint32_t x = 1; x < w - 1; ++x) {
             float sumx = 0, sumy = 0;
             for (int ky = -1; ky <= 1; ++ky) {
                 for (int kx = -1; kx <= 1; ++kx) {
-                    uint8_t pixel;
-                    if (src->channels == 1) {
-                        pixel = src->data[(y + ky) * src->width + (x + kx)];
-                    } else {
-                        uint8_t r = src->data[((y + ky) * src->width + (x + kx)) * src->channels + 0];
-                        uint8_t g = src->data[((y + ky) * src->width + (x + kx)) * src->channels + 1];
-                        uint8_t b = src->data[((y + ky) * src->width + (x + kx)) * src->channels + 2];
-                        pixel = (uint8_t)(0.299 * r + 0.587 * g + 0.114 * b);
+                    float pixel = 0.0f;
+                    size_t idx = ((y + ky) * w + (x + kx));
+                    switch (src->format) {
+                        case FOSSIL_PIXEL_FORMAT_GRAY8:
+                        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+                        case FOSSIL_PIXEL_FORMAT_YUV24:
+                            pixel = (float)src->data[idx];
+                            break;
+                        case FOSSIL_PIXEL_FORMAT_RGB24:
+                        case FOSSIL_PIXEL_FORMAT_RGBA32: {
+                            uint8_t r = src->data[idx * src->channels + 0];
+                            uint8_t g = src->data[idx * src->channels + 1];
+                            uint8_t b = src->data[idx * src->channels + 2];
+                            pixel = 0.299f * r + 0.587f * g + 0.114f * b;
+                            break;
+                        }
+                        case FOSSIL_PIXEL_FORMAT_GRAY16: {
+                            uint16_t *idata = (uint16_t *)src->data;
+                            pixel = (float)(idata[idx]) / 65535.0f * 255.0f;
+                            break;
+                        }
+                        case FOSSIL_PIXEL_FORMAT_RGB48:
+                        case FOSSIL_PIXEL_FORMAT_RGBA64: {
+                            uint16_t *idata = (uint16_t *)src->data;
+                            uint16_t r = idata[idx * src->channels + 0];
+                            uint16_t g = idata[idx * src->channels + 1];
+                            uint16_t b = idata[idx * src->channels + 2];
+                            pixel = (0.299f * r + 0.587f * g + 0.114f * b) / 65535.0f * 255.0f;
+                            break;
+                        }
+                        case FOSSIL_PIXEL_FORMAT_FLOAT32: {
+                            pixel = fmaxf(0.0f, fminf(src->fdata[idx], 1.0f)) * 255.0f;
+                            break;
+                        }
+                        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+                        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA: {
+                            float r = src->fdata[idx * src->channels + 0];
+                            float g = src->fdata[idx * src->channels + 1];
+                            float b = src->fdata[idx * src->channels + 2];
+                            pixel = (0.299f * r + 0.587f * g + 0.114f * b) * 255.0f;
+                            break;
+                        }
+                        default:
+                            pixel = 0.0f;
+                            break;
                     }
                     sumx += gx[ky + 1][kx + 1] * pixel;
                     sumy += gy[ky + 1][kx + 1] * pixel;
                 }
             }
             float mag = sqrtf(sumx * sumx + sumy * sumy);
-            dst->data[y * dst->width + x] = (uint8_t)fminf(mag, 255.0f);
+            dst->data[y * w + x] = (uint8_t)fminf(mag, 255.0f);
         }
     }
 
@@ -158,18 +399,90 @@ bool fossil_image_analyze_edge_sobel(const fossil_image_t *src, fossil_image_t *
 }
 
 bool fossil_image_analyze_entropy(const fossil_image_t *image, double *out_entropy) {
-    if (!image || !image->data || !out_entropy)
-        return false;
-
-    uint32_t hist[256] = {0};
-    if (!fossil_image_analyze_histogram(image, hist))
+    if (!image || !out_entropy)
         return false;
 
     size_t npixels = (size_t)image->width * image->height;
+    uint32_t bins = 256;
+    uint32_t hist[1024] = {0}; // Support up to 4 channels
+
+    // Select proper histogram source and bins
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            if (!image->data)
+                return false;
+            bins = 256;
+            for (size_t i = 0; i < npixels; ++i)
+                hist[image->data[i]]++;
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+            if (!image->data)
+                return false;
+            bins = 256 * image->channels;
+            for (size_t i = 0; i < npixels; ++i)
+                for (uint32_t c = 0; c < image->channels; ++c)
+                    hist[c * 256 + image->data[i * image->channels + c]]++;
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+            if (!image->data)
+                return false;
+            bins = 256;
+            {
+                uint16_t *idata = (uint16_t *)image->data;
+                for (size_t i = 0; i < npixels; ++i)
+                    hist[idata[i] >> 8]++;
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            if (!image->data)
+                return false;
+            bins = 256 * image->channels;
+            {
+                uint16_t *idata = (uint16_t *)image->data;
+                for (size_t i = 0; i < npixels; ++i)
+                    for (uint32_t c = 0; c < image->channels; ++c)
+                        hist[c * 256 + (idata[i * image->channels + c] >> 8)]++;
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+            if (!image->fdata)
+                return false;
+            bins = 256;
+            for (size_t i = 0; i < npixels; ++i) {
+                float val = fmaxf(0.0f, fminf(image->fdata[i], 1.0f));
+                hist[(uint8_t)(val * 255.0f)]++;
+            }
+            break;
+
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            if (!image->fdata)
+                return false;
+            bins = 256 * image->channels;
+            for (size_t i = 0; i < npixels; ++i)
+                for (uint32_t c = 0; c < image->channels; ++c) {
+                    float val = fmaxf(0.0f, fminf(image->fdata[i * image->channels + c], 1.0f));
+                    hist[c * 256 + (uint8_t)(val * 255.0f)]++;
+                }
+            break;
+
+        default:
+            return false;
+    }
+
     double entropy = 0.0;
-    for (int i = 0; i < 256; ++i) {
+    size_t total = npixels * ((bins > 256) ? image->channels : 1);
+    for (uint32_t i = 0; i < bins; ++i) {
         if (hist[i] == 0) continue;
-        double p = (double)hist[i] / npixels;
+        double p = (double)hist[i] / total;
         entropy -= p * log2(p);
     }
 

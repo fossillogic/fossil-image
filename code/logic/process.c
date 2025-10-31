@@ -37,11 +37,18 @@
 
 size_t fossil_image_bytes_per_pixel(fossil_pixel_format_t format) {
     switch (format) {
-        case FOSSIL_PIXEL_FORMAT_GRAY8:   return 1;
-        case FOSSIL_PIXEL_FORMAT_RGB24:   return 3;
-        case FOSSIL_PIXEL_FORMAT_RGBA32:  return 4;
-        case FOSSIL_PIXEL_FORMAT_FLOAT32: return 4;
-        default:                          return 0;
+        case FOSSIL_PIXEL_FORMAT_GRAY8:        return 1;
+        case FOSSIL_PIXEL_FORMAT_GRAY16:       return 2;
+        case FOSSIL_PIXEL_FORMAT_RGB24:        return 3;
+        case FOSSIL_PIXEL_FORMAT_RGB48:        return 6;
+        case FOSSIL_PIXEL_FORMAT_RGBA32:       return 4;
+        case FOSSIL_PIXEL_FORMAT_RGBA64:       return 8;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:      return 4;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:  return 12;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA: return 16;
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:     return 1;
+        case FOSSIL_PIXEL_FORMAT_YUV24:        return 3;
+        default:                               return 0;
     }
 }
 
@@ -57,33 +64,126 @@ fossil_image_t *fossil_image_process_create(
     img->width = width;
     img->height = height;
     img->format = format;
-    img->channels = (uint32_t)fossil_image_bytes_per_pixel(format);
-    img->size = (size_t)width * (size_t)height * img->channels;
+
+    // Set channels based on format
+    switch (format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+            img->channels = 1;
+            break;
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            img->channels = 3;
+            break;
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            img->channels = 4;
+            break;
+        default:
+            img->channels = 0;
+            break;
+    }
+
+    // Calculate buffer size in bytes
+    size_t bytes_per_pixel;
+    switch (format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+            bytes_per_pixel = 1;
+            break;
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+            bytes_per_pixel = 2;
+            break;
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            bytes_per_pixel = 3;
+            break;
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+            bytes_per_pixel = 6;
+            break;
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+            bytes_per_pixel = 4;
+            break;
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            bytes_per_pixel = 8;
+            break;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+            bytes_per_pixel = 4;
+            break;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+            bytes_per_pixel = 12;
+            break;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            bytes_per_pixel = 16;
+            break;
+        default:
+            bytes_per_pixel = 0;
+            break;
+    }
+
+    img->size = (size_t)width * (size_t)height * bytes_per_pixel;
     img->owns_data = true;
     img->dpi_x = 96.0;
     img->dpi_y = 96.0;
+    img->exposure = 0.0;
+    img->channels_mask = 0;
+    img->userdata = NULL;
+    img->is_ai_generated = false;
+    img->name[0] = '\0';
+    img->author[0] = '\0';
+    img->creation_os[0] = '\0';
+    img->software[0] = '\0';
+    img->creation_date[0] = '\0';
     strncpy(img->name, "unnamed", sizeof(img->name) - 1);
     img->name[sizeof(img->name) - 1] = '\0';
 
     // Check for integer overflow in size calculation
-    if (width == 0 || height == 0 || img->channels == 0 ||
-        img->size / img->channels / width != height) {
+    if (width == 0 || height == 0 || bytes_per_pixel == 0 ||
+        img->size / bytes_per_pixel / width != height) {
         free(img);
         return NULL;
     }
 
-    img->data = (uint8_t *)calloc(img->size, sizeof(uint8_t));
-    if (!img->data) {
-        free(img);
-        return NULL;
+    // Allocate buffer
+    if (format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
+        format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGB ||
+        format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA) {
+        img->fdata = (float *)calloc(img->size / sizeof(float), sizeof(float));
+        if (!img->fdata) {
+            free(img);
+            return NULL;
+        }
+    } else {
+        img->data = (uint8_t *)calloc(img->size, sizeof(uint8_t));
+        if (!img->data) {
+            free(img);
+            return NULL;
+        }
     }
     return img;
 }
 
 void fossil_image_process_destroy(fossil_image_t *image) {
     if (!image) return;
-    if (image->owns_data && image->data)
-        free(image->data);
+    if (image->owns_data) {
+        switch (image->format) {
+            case FOSSIL_PIXEL_FORMAT_FLOAT32:
+            case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+            case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+                if (image->fdata)
+                    free(image->fdata);
+                break;
+            default:
+                if (image->data)
+                    free(image->data);
+                break;
+        }
+    }
     free(image);
 }
 
@@ -97,7 +197,7 @@ bool fossil_image_process_resize(
     uint32_t new_h,
     fossil_interp_t mode
 ) {
-    if (!image || !image->data)
+    if (!image)
         return false;
 
     // Check for invalid resize dimensions
@@ -105,75 +205,159 @@ bool fossil_image_process_resize(
         return false;
 
     size_t channels = image->channels;
-    size_t new_size = (size_t)new_w * (size_t)new_h * channels;
-    uint8_t *new_data = (uint8_t *)calloc(new_size, sizeof(uint8_t));
-    if (!new_data)
+    size_t bytes_per_pixel = fossil_image_bytes_per_pixel(image->format);
+    size_t new_size = (size_t)new_w * (size_t)new_h * bytes_per_pixel;
+
+    // Handle float formats
+    bool is_float = (
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGB ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA
+    );
+
+    void *new_buffer = NULL;
+    if (is_float) {
+        new_buffer = calloc(new_size / sizeof(float), sizeof(float));
+    } else {
+        new_buffer = calloc(new_size, 1);
+    }
+    if (!new_buffer)
         return false;
 
     switch (mode) {
         case FOSSIL_INTERP_NEAREST:
-            // Nearest-neighbor scaling
-            for (uint32_t y = 0; y < new_h; ++y) {
-                for (uint32_t x = 0; x < new_w; ++x) {
-                    uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
-                    uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
-                    size_t src_i = (src_y * image->width + src_x) * channels;
-                    size_t dst_i = (y * new_w + x) * channels;
-                    if (src_i + channels <= image->size && dst_i + channels <= new_size) {
-                        memcpy(&new_data[dst_i], &image->data[src_i], channels);
+            if (is_float) {
+                float *src = image->fdata;
+                float *dst = (float *)new_buffer;
+                for (uint32_t y = 0; y < new_h; ++y) {
+                    for (uint32_t x = 0; x < new_w; ++x) {
+                        uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
+                        uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
+                        size_t src_i = (src_y * image->width + src_x) * channels;
+                        size_t dst_i = (y * new_w + x) * channels;
+                        for (size_t c = 0; c < channels; ++c) {
+                            dst[dst_i + c] = src[src_i + c];
+                        }
+                    }
+                }
+            } else {
+                uint8_t *src = image->data;
+                uint8_t *dst = (uint8_t *)new_buffer;
+                for (uint32_t y = 0; y < new_h; ++y) {
+                    for (uint32_t x = 0; x < new_w; ++x) {
+                        uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
+                        uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
+                        size_t src_i = (src_y * image->width + src_x) * channels;
+                        size_t dst_i = (y * new_w + x) * channels;
+                        memcpy(&dst[dst_i], &src[src_i], channels);
                     }
                 }
             }
             break;
         case FOSSIL_INTERP_LINEAR:
-            // Bilinear interpolation (simple implementation)
-            for (uint32_t y = 0; y < new_h; ++y) {
-                float src_yf = (float)y * image->height / new_h;
-                uint32_t y0 = (uint32_t)src_yf;
-                uint32_t y1 = (y0 + 1 < image->height) ? y0 + 1 : y0;
-                float wy = src_yf - y0;
-                for (uint32_t x = 0; x < new_w; ++x) {
-                    float src_xf = (float)x * image->width / new_w;
-                    uint32_t x0 = (uint32_t)src_xf;
-                    uint32_t x1 = (x0 + 1 < image->width) ? x0 + 1 : x0;
-                    float wx = src_xf - x0;
-                    size_t dst_i = (y * new_w + x) * channels;
-                    for (size_t c = 0; c < channels; ++c) {
-                        uint8_t p00 = image->data[(y0 * image->width + x0) * channels + c];
-                        uint8_t p01 = image->data[(y0 * image->width + x1) * channels + c];
-                        uint8_t p10 = image->data[(y1 * image->width + x0) * channels + c];
-                        uint8_t p11 = image->data[(y1 * image->width + x1) * channels + c];
-                        float val = (1 - wx) * (1 - wy) * p00 +
-                                    wx * (1 - wy) * p01 +
-                                    (1 - wx) * wy * p10 +
-                                    wx * wy * p11;
-                        new_data[dst_i + c] = (uint8_t)(val + 0.5f);
+            if (is_float) {
+                float *src = image->fdata;
+                float *dst = (float *)new_buffer;
+                for (uint32_t y = 0; y < new_h; ++y) {
+                    float src_yf = (float)y * image->height / new_h;
+                    uint32_t y0 = (uint32_t)src_yf;
+                    uint32_t y1 = (y0 + 1 < image->height) ? y0 + 1 : y0;
+                    float wy = src_yf - y0;
+                    for (uint32_t x = 0; x < new_w; ++x) {
+                        float src_xf = (float)x * image->width / new_w;
+                        uint32_t x0 = (uint32_t)src_xf;
+                        uint32_t x1 = (x0 + 1 < image->width) ? x0 + 1 : x0;
+                        float wx = src_xf - x0;
+                        size_t dst_i = (y * new_w + x) * channels;
+                        for (size_t c = 0; c < channels; ++c) {
+                            float p00 = src[(y0 * image->width + x0) * channels + c];
+                            float p01 = src[(y0 * image->width + x1) * channels + c];
+                            float p10 = src[(y1 * image->width + x0) * channels + c];
+                            float p11 = src[(y1 * image->width + x1) * channels + c];
+                            float val = (1 - wx) * (1 - wy) * p00 +
+                                        wx * (1 - wy) * p01 +
+                                        (1 - wx) * wy * p10 +
+                                        wx * wy * p11;
+                            dst[dst_i + c] = val;
+                        }
+                    }
+                }
+            } else {
+                uint8_t *src = image->data;
+                uint8_t *dst = (uint8_t *)new_buffer;
+                for (uint32_t y = 0; y < new_h; ++y) {
+                    float src_yf = (float)y * image->height / new_h;
+                    uint32_t y0 = (uint32_t)src_yf;
+                    uint32_t y1 = (y0 + 1 < image->height) ? y0 + 1 : y0;
+                    float wy = src_yf - y0;
+                    for (uint32_t x = 0; x < new_w; ++x) {
+                        float src_xf = (float)x * image->width / new_w;
+                        uint32_t x0 = (uint32_t)src_xf;
+                        uint32_t x1 = (x0 + 1 < image->width) ? x0 + 1 : x0;
+                        float wx = src_xf - x0;
+                        size_t dst_i = (y * new_w + x) * channels;
+                        for (size_t c = 0; c < channels; ++c) {
+                            uint8_t p00 = src[(y0 * image->width + x0) * channels + c];
+                            uint8_t p01 = src[(y0 * image->width + x1) * channels + c];
+                            uint8_t p10 = src[(y1 * image->width + x0) * channels + c];
+                            uint8_t p11 = src[(y1 * image->width + x1) * channels + c];
+                            float val = (1 - wx) * (1 - wy) * p00 +
+                                        wx * (1 - wy) * p01 +
+                                        (1 - wx) * wy * p10 +
+                                        wx * wy * p11;
+                            dst[dst_i + c] = (uint8_t)(val + 0.5f);
+                        }
                     }
                 }
             }
             break;
         case FOSSIL_INTERP_CUBIC:
         case FOSSIL_INTERP_LANCZOS:
+        case FOSSIL_INTERP_BICUBIC:
+        case FOSSIL_INTERP_MITCHELL:
+        case FOSSIL_INTERP_BSPLINE:
             // Not implemented, fallback to nearest
-            for (uint32_t y = 0; y < new_h; ++y) {
-                for (uint32_t x = 0; x < new_w; ++x) {
-                    uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
-                    uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
-                    size_t src_i = (src_y * image->width + src_x) * channels;
-                    size_t dst_i = (y * new_w + x) * channels;
-                    if (src_i + channels <= image->size && dst_i + channels <= new_size) {
-                        memcpy(&new_data[dst_i], &image->data[src_i], channels);
+            if (is_float) {
+                float *src = image->fdata;
+                float *dst = (float *)new_buffer;
+                for (uint32_t y = 0; y < new_h; ++y) {
+                    for (uint32_t x = 0; x < new_w; ++x) {
+                        uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
+                        uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
+                        size_t src_i = (src_y * image->width + src_x) * channels;
+                        size_t dst_i = (y * new_w + x) * channels;
+                        for (size_t c = 0; c < channels; ++c) {
+                            dst[dst_i + c] = src[src_i + c];
+                        }
+                    }
+                }
+            } else {
+                uint8_t *src = image->data;
+                uint8_t *dst = (uint8_t *)new_buffer;
+                for (uint32_t y = 0; y < new_h; ++y) {
+                    for (uint32_t x = 0; x < new_w; ++x) {
+                        uint32_t src_x = (uint32_t)((float)x * image->width / new_w);
+                        uint32_t src_y = (uint32_t)((float)y * image->height / new_h);
+                        size_t src_i = (src_y * image->width + src_x) * channels;
+                        size_t dst_i = (y * new_w + x) * channels;
+                        memcpy(&dst[dst_i], &src[src_i], channels);
                     }
                 }
             }
             break;
         default:
-            free(new_data);
+            free(new_buffer);
             return false;
     }
 
-    free(image->data);
-    image->data = new_data;
+    // Free old buffer and update image
+    if (is_float) {
+        free(image->fdata);
+        image->fdata = (float *)new_buffer;
+    } else {
+        free(image->data);
+        image->data = (uint8_t *)new_buffer;
+    }
     image->width = new_w;
     image->height = new_h;
     image->size = new_size;
@@ -187,29 +371,60 @@ bool fossil_image_process_crop(
     uint32_t w,
     uint32_t h
 ) {
-    if (!image || !image->data)
+    if (!image)
         return false;
+
+    size_t bytes_per_pixel = fossil_image_bytes_per_pixel(image->format);
+    size_t channels = image->channels;
+    size_t new_size = (size_t)w * (size_t)h * bytes_per_pixel;
+
+    bool is_float = (
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGB ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA
+    );
 
     if (x + w > image->width || y + h > image->height)
         return false;
 
-    size_t channels = image->channels;
-    size_t new_size = (size_t)w * (size_t)h * channels;
-    uint8_t *new_data = (uint8_t *)calloc(new_size, sizeof(uint8_t));
-    if (!new_data)
-        return false;
+    if (is_float) {
+        float *src = image->fdata;
+        float *new_fdata = (float *)calloc(new_size / sizeof(float), sizeof(float));
+        if (!new_fdata)
+            return false;
 
-    for (uint32_t j = 0; j < h; ++j) {
-        size_t src_idx = ((y + j) * image->width + x) * channels;
-        size_t dst_idx = j * w * channels;
-        // Ensure we do not read beyond the source buffer
-        if (src_idx + w * channels <= image->size && dst_idx + w * channels <= new_size) {
-            memcpy(&new_data[dst_idx], &image->data[src_idx], w * channels);
+        size_t row_stride_src = image->width * channels;
+        size_t row_stride_dst = w * channels;
+        for (uint32_t j = 0; j < h; ++j) {
+            size_t src_idx = ((y + j) * image->width + x) * channels;
+            size_t dst_idx = j * w * channels;
+            if (src_idx + w * channels <= image->width * image->height * channels &&
+                dst_idx + w * channels <= w * h * channels) {
+                memcpy(&new_fdata[dst_idx], &src[src_idx], w * channels * sizeof(float));
+            }
         }
+        free(image->fdata);
+        image->fdata = new_fdata;
+    } else {
+        uint8_t *src = image->data;
+        uint8_t *new_data = (uint8_t *)calloc(new_size, sizeof(uint8_t));
+        if (!new_data)
+            return false;
+
+        size_t row_stride_src = image->width * channels;
+        size_t row_stride_dst = w * channels;
+        for (uint32_t j = 0; j < h; ++j) {
+            size_t src_idx = ((y + j) * image->width + x) * channels;
+            size_t dst_idx = j * w * channels;
+            if (src_idx + w * channels <= image->width * image->height * channels &&
+                dst_idx + w * channels <= w * h * channels) {
+                memcpy(&new_data[dst_idx], &src[src_idx], w * channels * sizeof(uint8_t));
+            }
+        }
+        free(image->data);
+        image->data = new_data;
     }
 
-    free(image->data);
-    image->data = new_data;
     image->width = w;
     image->height = h;
     image->size = new_size;
@@ -221,69 +436,135 @@ bool fossil_image_process_flip(
     bool horizontal,
     bool vertical
 ) {
-    if (!image || !image->data)
+    if (!image)
         return false;
 
+    size_t bytes_per_pixel = fossil_image_bytes_per_pixel(image->format);
     uint32_t w = image->width;
     uint32_t h = image->height;
     size_t c = image->channels;
-    uint8_t *temp = (uint8_t *)calloc(image->size, sizeof(uint8_t));
-    if (!temp)
-        return false;
+    size_t row_stride = w * c;
 
-    for (uint32_t y = 0; y < h; ++y) {
-        for (uint32_t x = 0; x < w; ++x) {
-            uint32_t sx = horizontal ? (w - 1 - x) : x;
-            uint32_t sy = vertical ? (h - 1 - y) : y;
-            size_t src_idx = (sy * w + sx) * c;
-            size_t dst_idx = (y * w + x) * c;
-            if (src_idx + c <= image->size && dst_idx + c <= image->size) {
-                memcpy(&temp[dst_idx], &image->data[src_idx], c);
+    bool is_float = (
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGB ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA
+    );
+
+    if (is_float) {
+        if (!image->fdata)
+            return false;
+        float *temp = (float *)calloc(image->size / sizeof(float), sizeof(float));
+        if (!temp)
+            return false;
+
+        for (uint32_t y = 0; y < h; ++y) {
+            for (uint32_t x = 0; x < w; ++x) {
+                uint32_t sx = horizontal ? (w - 1 - x) : x;
+                uint32_t sy = vertical ? (h - 1 - y) : y;
+                size_t src_idx = (sy * w + sx) * c;
+                size_t dst_idx = (y * w + x) * c;
+                if (src_idx + c <= image->size / sizeof(float) && dst_idx + c <= image->size / sizeof(float)) {
+                    memcpy(&temp[dst_idx], &image->fdata[src_idx], c * sizeof(float));
+                }
             }
         }
-    }
+        memcpy(image->fdata, temp, image->size);
+        free(temp);
+    } else {
+        if (!image->data)
+            return false;
+        uint8_t *temp = (uint8_t *)calloc(image->size, sizeof(uint8_t));
+        if (!temp)
+            return false;
 
-    memcpy(image->data, temp, image->size);
-    free(temp);
+        for (uint32_t y = 0; y < h; ++y) {
+            for (uint32_t x = 0; x < w; ++x) {
+                uint32_t sx = horizontal ? (w - 1 - x) : x;
+                uint32_t sy = vertical ? (h - 1 - y) : y;
+                size_t src_idx = (sy * w + sx) * c;
+                size_t dst_idx = (y * w + x) * c;
+                if (src_idx + c <= image->size && dst_idx + c <= image->size) {
+                    memcpy(&temp[dst_idx], &image->data[src_idx], c);
+                }
+            }
+        }
+        memcpy(image->data, temp, image->size);
+        free(temp);
+    }
     return true;
 }
 
 bool fossil_image_process_rotate(
     fossil_image_t *image,
-    float degrees
+    float degrees,
+    fossil_interp_t interp
 ) {
-    if (!image || !image->data)
+    if (!image)
         return false;
 
-    float radians = degrees * (float)M_PI / 180.0f;
-    float cos_a = cosf(radians);
-    float sin_a = sinf(radians);
+    bool is_float = (
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGB ||
+        image->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA
+    );
 
     uint32_t w = image->width;
     uint32_t h = image->height;
     size_t c = image->channels;
 
-    uint8_t *new_data = (uint8_t *)calloc(image->size, 1);
-    if (!new_data)
-        return false;
+    float radians = degrees * (float)M_PI / 180.0f;
+    float cos_a = cosf(radians);
+    float sin_a = sinf(radians);
 
     int cx = (int)w / 2;
     int cy = (int)h / 2;
 
-    for (int y = 0; y < (int)h; ++y) {
-        for (int x = 0; x < (int)w; ++x) {
-            int rx = (int)(cos_a * (x - cx) - sin_a * (y - cy) + cx);
-            int ry = (int)(sin_a * (x - cx) + cos_a * (y - cy) + cy);
-            if (rx >= 0 && rx < (int)w && ry >= 0 && ry < (int)h) {
-                memcpy(&new_data[(y * w + x) * c],
-                       &image->data[(ry * w + rx) * c],
-                       c);
+    if (is_float) {
+        float *new_fdata = (float *)calloc(image->size / sizeof(float), sizeof(float));
+        if (!new_fdata)
+            return false;
+
+        for (int y = 0; y < (int)h; ++y) {
+            for (int x = 0; x < (int)w; ++x) {
+                float fx = (float)x - cx;
+                float fy = (float)y - cy;
+                float rx = cos_a * fx - sin_a * fy + cx;
+                float ry = sin_a * fx + cos_a * fy + cy;
+                int irx = (int)(rx + 0.5f);
+                int iry = (int)(ry + 0.5f);
+                if (irx >= 0 && irx < (int)w && iry >= 0 && iry < (int)h) {
+                    size_t src_idx = (iry * w + irx) * c;
+                    size_t dst_idx = (y * w + x) * c;
+                    memcpy(&new_fdata[dst_idx], &image->fdata[src_idx], c * sizeof(float));
+                }
             }
         }
-    }
+        free(image->fdata);
+        image->fdata = new_fdata;
+    } else {
+        uint8_t *new_data = (uint8_t *)calloc(image->size, 1);
+        if (!new_data)
+            return false;
 
-    free(image->data);
-    image->data = new_data;
+        for (int y = 0; y < (int)h; ++y) {
+            for (int x = 0; x < (int)w; ++x) {
+                float fx = (float)x - cx;
+                float fy = (float)y - cy;
+                float rx = cos_a * fx - sin_a * fy + cx;
+                float ry = sin_a * fx + cos_a * fy + cy;
+                int irx = (int)(rx + 0.5f);
+                int iry = (int)(ry + 0.5f);
+                if (irx >= 0 && irx < (int)w && iry >= 0 && iry < (int)h) {
+                    size_t src_idx = (iry * w + irx) * c;
+                    size_t dst_idx = (y * w + x) * c;
+                    memcpy(&new_data[dst_idx], &image->data[src_idx], c);
+                }
+            }
+        }
+        free(image->data);
+        image->data = new_data;
+    }
     // image->width, image->height, and image->size remain unchanged for in-place rotation
     return true;
 }
@@ -293,18 +574,56 @@ bool fossil_image_process_blend(
     const fossil_image_t *src,
     float ratio
 ) {
-    if (!dst || !src || !dst->data || !src->data)
+    if (!dst || !src)
         return false;
 
-    if (dst->width != src->width || dst->height != src->height || dst->channels != src->channels)
+    // Check matching dimensions, channels, and format
+    if (dst->width != src->width || dst->height != src->height ||
+        dst->channels != src->channels || dst->format != src->format)
         return false;
 
-    size_t min_size = dst->size < src->size ? dst->size : src->size;
     ratio = fmaxf(0.0f, fminf(1.0f, ratio));
-    for (size_t i = 0; i < min_size; ++i) {
-        dst->data[i] = (uint8_t)(
-            fmaxf(0.0f, fminf(255.0f, (1.0f - ratio) * dst->data[i] + ratio * src->data[i]))
-        );
+
+    bool is_float = (
+        dst->format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
+        dst->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGB ||
+        dst->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA
+    );
+
+    size_t npixels = (size_t)dst->width * dst->height * dst->channels;
+
+    if (is_float) {
+        if (!dst->fdata || !src->fdata)
+            return false;
+        for (size_t i = 0; i < npixels; ++i) {
+            dst->fdata[i] = (1.0f - ratio) * dst->fdata[i] + ratio * src->fdata[i];
+        }
+    } else {
+        if (!dst->data || !src->data)
+            return false;
+        size_t bytes_per_pixel = fossil_image_bytes_per_pixel(dst->format);
+        // For 16-bit formats, blend as uint16_t
+        if (dst->format == FOSSIL_PIXEL_FORMAT_GRAY16 ||
+            dst->format == FOSSIL_PIXEL_FORMAT_RGB48 ||
+            dst->format == FOSSIL_PIXEL_FORMAT_RGBA64) {
+            uint16_t *d16 = (uint16_t *)dst->data;
+            uint16_t *s16 = (uint16_t *)src->data;
+            size_t n16 = npixels * (bytes_per_pixel / 2);
+            for (size_t i = 0; i < n16; ++i) {
+                float blended = (1.0f - ratio) * d16[i] + ratio * s16[i];
+                if (blended < 0.0f) blended = 0.0f;
+                if (blended > 65535.0f) blended = 65535.0f;
+                d16[i] = (uint16_t)(blended + 0.5f);
+            }
+        } else {
+            // 8-bit formats
+            for (size_t i = 0; i < npixels; ++i) {
+                float blended = (1.0f - ratio) * dst->data[i] + ratio * src->data[i];
+                if (blended < 0.0f) blended = 0.0f;
+                if (blended > 255.0f) blended = 255.0f;
+                dst->data[i] = (uint8_t)(blended + 0.5f);
+            }
+        }
     }
     return true;
 }
@@ -316,11 +635,11 @@ bool fossil_image_process_composite(
     uint32_t y,
     float alpha
 ) {
-    if (!dst || !overlay || !dst->data || !overlay->data)
+    if (!dst || !overlay)
         return false;
 
-    // Ensure channel counts match
-    if (dst->channels != overlay->channels)
+    // Ensure channel counts and formats match
+    if (dst->channels != overlay->channels || dst->format != overlay->format)
         return false;
 
     // Ensure overlay fits within destination bounds
@@ -334,19 +653,74 @@ bool fossil_image_process_composite(
     uint32_t h = overlay->height;
     size_t c = dst->channels;
 
-    for (uint32_t j = 0; j < h; ++j) {
-        for (uint32_t i = 0; i < w; ++i) {
-            uint32_t dx = x + i;
-            uint32_t dy = y + j;
-            size_t di = (dy * dst->width + dx) * c;
-            size_t si = (j * overlay->width + i) * c;
-            // Prevent buffer overflow
-            if (di + c > dst->size || si + c > overlay->size)
-                continue;
-            for (size_t k = 0; k < c; ++k) {
-                dst->data[di + k] = (uint8_t)(
-                    (1.0f - alpha) * dst->data[di + k] + alpha * overlay->data[si + k]
-                );
+    bool is_float = (
+        dst->format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
+        dst->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGB ||
+        dst->format == FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA
+    );
+
+    size_t bytes_per_pixel = fossil_image_bytes_per_pixel(dst->format);
+
+    if (is_float) {
+        if (!dst->fdata || !overlay->fdata)
+            return false;
+        for (uint32_t j = 0; j < h; ++j) {
+            for (uint32_t i = 0; i < w; ++i) {
+                uint32_t dx = x + i;
+                uint32_t dy = y + j;
+                size_t di = (dy * dst->width + dx) * c;
+                size_t si = (j * overlay->width + i) * c;
+                if (di + c > dst->size / sizeof(float) || si + c > overlay->size / sizeof(float))
+                    continue;
+                for (size_t k = 0; k < c; ++k) {
+                    dst->fdata[di + k] = (1.0f - alpha) * dst->fdata[di + k] + alpha * overlay->fdata[si + k];
+                }
+            }
+        }
+    } else if (
+        dst->format == FOSSIL_PIXEL_FORMAT_GRAY16 ||
+        dst->format == FOSSIL_PIXEL_FORMAT_RGB48 ||
+        dst->format == FOSSIL_PIXEL_FORMAT_RGBA64
+    ) {
+        if (!dst->data || !overlay->data)
+            return false;
+        uint16_t *d16 = (uint16_t *)dst->data;
+        uint16_t *s16 = (uint16_t *)overlay->data;
+        size_t row_stride_dst = dst->width * c;
+        size_t row_stride_src = overlay->width * c;
+        for (uint32_t j = 0; j < h; ++j) {
+            for (uint32_t i = 0; i < w; ++i) {
+                uint32_t dx = x + i;
+                uint32_t dy = y + j;
+                size_t di = (dy * dst->width + dx) * c;
+                size_t si = (j * overlay->width + i) * c;
+                if (di + c > dst->size / 2 || si + c > overlay->size / 2)
+                    continue;
+                for (size_t k = 0; k < c; ++k) {
+                    float blended = (1.0f - alpha) * d16[di + k] + alpha * s16[si + k];
+                    if (blended < 0.0f) blended = 0.0f;
+                    if (blended > 65535.0f) blended = 65535.0f;
+                    d16[di + k] = (uint16_t)(blended + 0.5f);
+                }
+            }
+        }
+    } else {
+        if (!dst->data || !overlay->data)
+            return false;
+        for (uint32_t j = 0; j < h; ++j) {
+            for (uint32_t i = 0; i < w; ++i) {
+                uint32_t dx = x + i;
+                uint32_t dy = y + j;
+                size_t di = (dy * dst->width + dx) * c;
+                size_t si = (j * overlay->width + i) * c;
+                if (di + c > dst->size || si + c > overlay->size)
+                    continue;
+                for (size_t k = 0; k < c; ++k) {
+                    float blended = (1.0f - alpha) * dst->data[di + k] + alpha * overlay->data[si + k];
+                    if (blended < 0.0f) blended = 0.0f;
+                    if (blended > 255.0f) blended = 255.0f;
+                    dst->data[di + k] = (uint8_t)(blended + 0.5f);
+                }
             }
         }
     }
@@ -354,83 +728,317 @@ bool fossil_image_process_composite(
 }
 
 bool fossil_image_process_grayscale(fossil_image_t *image) {
-    if (!image || !image->data)
+    if (!image)
         return false;
-
-    // Only convert if format is RGB24 or RGBA32
-    if (image->format != FOSSIL_PIXEL_FORMAT_RGB24 && image->format != FOSSIL_PIXEL_FORMAT_RGBA32)
-        return false;
-
-    if (image->channels < 3)
-        return true; // already grayscale
 
     size_t npixels = (size_t)image->width * image->height;
-    size_t data_size = npixels * image->channels;
-    if (image->size < data_size)
-        return false; // Prevent buffer overflow
 
-    uint8_t *new_data = (uint8_t *)calloc(npixels, 1);
-    if (!new_data)
-        return false;
-
-    for (size_t i = 0; i < npixels; ++i) {
-        uint8_t r = image->data[i * image->channels + 0];
-        uint8_t g = image->data[i * image->channels + 1];
-        uint8_t b = image->data[i * image->channels + 2];
-        new_data[i] = (uint8_t)(0.299 * r + 0.587 * g + 0.114 * b);
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_RGB24: {
+            if (!image->data)
+                return false;
+            uint8_t *new_data = (uint8_t *)calloc(npixels, 1);
+            if (!new_data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                uint8_t r = image->data[i * 3 + 0];
+                uint8_t g = image->data[i * 3 + 1];
+                uint8_t b = image->data[i * 3 + 2];
+                new_data[i] = (uint8_t)(0.299 * r + 0.587 * g + 0.114 * b);
+            }
+            free(image->data);
+            image->data = new_data;
+            image->channels = 1;
+            image->format = FOSSIL_PIXEL_FORMAT_GRAY8;
+            image->size = npixels;
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_RGBA32: {
+            if (!image->data)
+                return false;
+            uint8_t *new_data = (uint8_t *)calloc(npixels, 1);
+            if (!new_data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                uint8_t r = image->data[i * 4 + 0];
+                uint8_t g = image->data[i * 4 + 1];
+                uint8_t b = image->data[i * 4 + 2];
+                new_data[i] = (uint8_t)(0.299 * r + 0.587 * g + 0.114 * b);
+            }
+            free(image->data);
+            image->data = new_data;
+            image->channels = 1;
+            image->format = FOSSIL_PIXEL_FORMAT_GRAY8;
+            image->size = npixels;
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_RGB48: {
+            if (!image->data)
+                return false;
+            uint16_t *src = (uint16_t *)image->data;
+            uint16_t *new_data = (uint16_t *)calloc(npixels, sizeof(uint16_t));
+            if (!new_data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                uint16_t r = src[i * 3 + 0];
+                uint16_t g = src[i * 3 + 1];
+                uint16_t b = src[i * 3 + 2];
+                new_data[i] = (uint16_t)(0.299 * r + 0.587 * g + 0.114 * b);
+            }
+            free(image->data);
+            image->data = (uint8_t *)new_data;
+            image->channels = 1;
+            image->format = FOSSIL_PIXEL_FORMAT_GRAY16;
+            image->size = npixels * sizeof(uint16_t);
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_RGBA64: {
+            if (!image->data)
+                return false;
+            uint16_t *src = (uint16_t *)image->data;
+            uint16_t *new_data = (uint16_t *)calloc(npixels, sizeof(uint16_t));
+            if (!new_data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                uint16_t r = src[i * 4 + 0];
+                uint16_t g = src[i * 4 + 1];
+                uint16_t b = src[i * 4 + 2];
+                new_data[i] = (uint16_t)(0.299 * r + 0.587 * g + 0.114 * b);
+            }
+            free(image->data);
+            image->data = (uint8_t *)new_data;
+            image->channels = 1;
+            image->format = FOSSIL_PIXEL_FORMAT_GRAY16;
+            image->size = npixels * sizeof(uint16_t);
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB: {
+            if (!image->fdata)
+                return false;
+            float *new_fdata = (float *)calloc(npixels, sizeof(float));
+            if (!new_fdata)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                float r = image->fdata[i * 3 + 0];
+                float g = image->fdata[i * 3 + 1];
+                float b = image->fdata[i * 3 + 2];
+                new_fdata[i] = 0.299f * r + 0.587f * g + 0.114f * b;
+            }
+            free(image->fdata);
+            image->fdata = new_fdata;
+            image->channels = 1;
+            image->format = FOSSIL_PIXEL_FORMAT_FLOAT32;
+            image->size = npixels * sizeof(float);
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA: {
+            if (!image->fdata)
+                return false;
+            float *new_fdata = (float *)calloc(npixels, sizeof(float));
+            if (!new_fdata)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                float r = image->fdata[i * 4 + 0];
+                float g = image->fdata[i * 4 + 1];
+                float b = image->fdata[i * 4 + 2];
+                new_fdata[i] = 0.299f * r + 0.587f * g + 0.114f * b;
+            }
+            free(image->fdata);
+            image->fdata = new_fdata;
+            image->channels = 1;
+            image->format = FOSSIL_PIXEL_FORMAT_FLOAT32;
+            image->size = npixels * sizeof(float);
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_YUV24: {
+            if (!image->data)
+                return false;
+            uint8_t *new_data = (uint8_t *)calloc(npixels, 1);
+            if (!new_data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                uint8_t y = image->data[i * 3 + 0];
+                new_data[i] = y;
+            }
+            free(image->data);
+            image->data = new_data;
+            image->channels = 1;
+            image->format = FOSSIL_PIXEL_FORMAT_GRAY8;
+            image->size = npixels;
+            break;
+        }
+        default:
+            // Already grayscale or unsupported format
+            return false;
     }
-
-    free(image->data);
-    image->data = new_data;
-    image->channels = 1;
-    image->format = FOSSIL_PIXEL_FORMAT_GRAY8;
-    image->size = npixels;
     return true;
 }
 
 bool fossil_image_process_threshold(fossil_image_t *image, uint8_t threshold) {
-    if (!image || !image->data)
+    if (!image)
         return false;
 
-    // Threshold is always within 0-255 for uint8_t
+    size_t npixels = (size_t)image->width * image->height * image->channels;
 
-    size_t pixels = image->width * image->height * image->channels;
-    for (size_t i = 0; i < pixels; ++i) {
-        image->data[i] = (image->data[i] >= threshold) ? 255 : 0;
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            if (!image->data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i) {
+                image->data[i] = (image->data[i] >= threshold) ? 255 : 0;
+            }
+            break;
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            if (!image->data)
+                return false;
+            {
+                uint16_t *data16 = (uint16_t *)image->data;
+                for (size_t i = 0; i < npixels; ++i) {
+                    data16[i] = (data16[i] >= (uint16_t)threshold * 257) ? 65535 : 0;
+                }
+            }
+            break;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            if (!image->fdata)
+                return false;
+            {
+                float t = (float)threshold / 255.0f;
+                for (size_t i = 0; i < npixels; ++i) {
+                    image->fdata[i] = (image->fdata[i] >= t) ? 1.0f : 0.0f;
+                }
+            }
+            break;
+        default:
+            return false;
     }
     return true;
 }
 
 bool fossil_image_process_invert(fossil_image_t *image) {
-    if (!image || !image->data)
+    if (!image)
         return false;
 
-    size_t pixels = image->width * image->height * image->channels;
-    for (size_t i = 0; i < pixels; ++i)
-        image->data[i] = (uint8_t)(255U - (uint8_t)image->data[i]);
+    size_t npixels = (size_t)image->width * image->height * image->channels;
+
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24:
+            if (!image->data)
+                return false;
+            for (size_t i = 0; i < npixels; ++i)
+                image->data[i] = (uint8_t)(255U - image->data[i]);
+            break;
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64:
+            if (!image->data)
+                return false;
+            {
+                uint16_t *data16 = (uint16_t *)image->data;
+                for (size_t i = 0; i < npixels; ++i)
+                    data16[i] = (uint16_t)(65535U - data16[i]);
+            }
+            break;
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
+            if (!image->fdata)
+                return false;
+            for (size_t i = 0; i < npixels; ++i)
+                image->fdata[i] = 1.0f - image->fdata[i];
+            break;
+        default:
+            return false;
+    }
     return true;
 }
 
 bool fossil_image_process_normalize(fossil_image_t *image) {
-    if (!image || !image->data)
+    if (!image)
         return false;
 
-    size_t pixels = image->width * image->height * image->channels;
-    uint8_t min_val = 255, max_val = 0;
-    for (size_t i = 0; i < pixels; ++i) {
-        if (image->data[i] < min_val) min_val = image->data[i];
-        if (image->data[i] > max_val) max_val = image->data[i];
-    }
+    size_t npixels = (size_t)image->width * image->height * image->channels;
 
-    if (max_val == min_val)
-        return true;
-
-    float scale = 255.0f / (float)(max_val - min_val);
-    for (size_t i = 0; i < pixels; ++i) {
-        float normalized = ((float)image->data[i] - (float)min_val) * scale;
-        if (normalized < 0.0f) normalized = 0.0f;
-        if (normalized > 255.0f) normalized = 255.0f;
-        image->data[i] = (uint8_t)(normalized + 0.5f); // round to nearest
+    switch (image->format) {
+        case FOSSIL_PIXEL_FORMAT_GRAY8:
+        case FOSSIL_PIXEL_FORMAT_RGB24:
+        case FOSSIL_PIXEL_FORMAT_RGBA32:
+        case FOSSIL_PIXEL_FORMAT_INDEXED8:
+        case FOSSIL_PIXEL_FORMAT_YUV24: {
+            if (!image->data)
+                return false;
+            uint8_t min_val = 255, max_val = 0;
+            for (size_t i = 0; i < npixels; ++i) {
+                if (image->data[i] < min_val) min_val = image->data[i];
+                if (image->data[i] > max_val) max_val = image->data[i];
+            }
+            if (max_val == min_val)
+                return true;
+            float scale = 255.0f / (float)(max_val - min_val);
+            for (size_t i = 0; i < npixels; ++i) {
+                float normalized = ((float)image->data[i] - (float)min_val) * scale;
+                if (normalized < 0.0f) normalized = 0.0f;
+                if (normalized > 255.0f) normalized = 255.0f;
+                image->data[i] = (uint8_t)(normalized + 0.5f);
+            }
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_GRAY16:
+        case FOSSIL_PIXEL_FORMAT_RGB48:
+        case FOSSIL_PIXEL_FORMAT_RGBA64: {
+            if (!image->data)
+                return false;
+            uint16_t *data16 = (uint16_t *)image->data;
+            uint16_t min_val = 65535, max_val = 0;
+            for (size_t i = 0; i < npixels; ++i) {
+                if (data16[i] < min_val) min_val = data16[i];
+                if (data16[i] > max_val) max_val = data16[i];
+            }
+            if (max_val == min_val)
+                return true;
+            float scale = 65535.0f / (float)(max_val - min_val);
+            for (size_t i = 0; i < npixels; ++i) {
+                float normalized = ((float)data16[i] - (float)min_val) * scale;
+                if (normalized < 0.0f) normalized = 0.0f;
+                if (normalized > 65535.0f) normalized = 65535.0f;
+                data16[i] = (uint16_t)(normalized + 0.5f);
+            }
+            break;
+        }
+        case FOSSIL_PIXEL_FORMAT_FLOAT32:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
+        case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA: {
+            if (!image->fdata)
+                return false;
+            float min_val = image->fdata[0], max_val = image->fdata[0];
+            for (size_t i = 1; i < npixels; ++i) {
+                if (image->fdata[i] < min_val) min_val = image->fdata[i];
+                if (image->fdata[i] > max_val) max_val = image->fdata[i];
+            }
+            if (max_val == min_val)
+                return true;
+            float scale = 1.0f / (max_val - min_val);
+            for (size_t i = 0; i < npixels; ++i) {
+                float normalized = (image->fdata[i] - min_val) * scale;
+                if (normalized < 0.0f) normalized = 0.0f;
+                if (normalized > 1.0f) normalized = 1.0f;
+                image->fdata[i] = normalized;
+            }
+            break;
+        }
+        default:
+            return false;
     }
     return true;
 }
