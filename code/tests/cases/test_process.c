@@ -49,7 +49,7 @@ FOSSIL_TEARDOWN(c_image_process_fixture) {
 
 FOSSIL_TEST(c_test_image_process_create_basic) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     ASSUME_ITS_EQUAL_I32(img->width, 2);
     ASSUME_ITS_EQUAL_I32(img->height, 2);
     fossil_image_process_destroy(img);
@@ -62,14 +62,14 @@ FOSSIL_TEST(c_test_image_process_create_zero_size) {
 
 FOSSIL_TEST(c_test_image_process_destroy_basic) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     fossil_image_process_destroy(img);
     // No assertion needed, just ensure no crash
 }
 
 FOSSIL_TEST(c_test_image_process_resize_basic) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     memset(img->data, 123, img->size);
     bool ok = fossil_image_process_resize(img, 4, 4, FOSSIL_INTERP_NEAREST);
     ASSUME_ITS_TRUE(ok);
@@ -80,7 +80,7 @@ FOSSIL_TEST(c_test_image_process_resize_basic) {
 
 FOSSIL_TEST(c_test_image_process_resize_invalid) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     bool ok = fossil_image_process_resize(img, 0, 0, FOSSIL_INTERP_NEAREST);
     ASSUME_ITS_FALSE(ok);
     fossil_image_process_destroy(img);
@@ -93,7 +93,7 @@ FOSSIL_TEST(c_test_image_process_resize_null_image) {
 
 FOSSIL_TEST(c_test_image_process_crop_basic) {
     fossil_image_t *img = fossil_image_process_create(4, 4, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     memset(img->data, 50, img->size);
     bool ok = fossil_image_process_crop(img, 1, 1, 2, 2);
     ASSUME_ITS_TRUE(ok);
@@ -104,7 +104,7 @@ FOSSIL_TEST(c_test_image_process_crop_basic) {
 
 FOSSIL_TEST(c_test_image_process_crop_out_of_bounds) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     bool ok = fossil_image_process_crop(img, 1, 1, 5, 5);
     ASSUME_ITS_FALSE(ok);
     fossil_image_process_destroy(img);
@@ -112,7 +112,7 @@ FOSSIL_TEST(c_test_image_process_crop_out_of_bounds) {
 
 FOSSIL_TEST(c_test_image_process_flip_horizontal) {
     fossil_image_t *img = fossil_image_process_create(2, 1, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     img->data[0] = 10; img->data[3] = 20;
     bool ok = fossil_image_process_flip(img, true, false);
     ASSUME_ITS_TRUE(ok);
@@ -122,7 +122,7 @@ FOSSIL_TEST(c_test_image_process_flip_horizontal) {
 
 FOSSIL_TEST(c_test_image_process_flip_vertical) {
     fossil_image_t *img = fossil_image_process_create(1, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     img->data[0] = 30; img->data[3] = 40;
     bool ok = fossil_image_process_flip(img, false, true);
     ASSUME_ITS_TRUE(ok);
@@ -132,7 +132,7 @@ FOSSIL_TEST(c_test_image_process_flip_vertical) {
 
 FOSSIL_TEST(c_test_image_process_rotate_90) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     img->data[0] = 1; img->data[3] = 2; img->data[6] = 3; img->data[9] = 4;
     bool ok = fossil_image_process_rotate(img, 90.0f);
     ASSUME_ITS_TRUE(ok);
@@ -176,7 +176,7 @@ FOSSIL_TEST(c_test_image_process_composite_basic) {
 
 FOSSIL_TEST(c_test_image_process_grayscale_basic) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     img->data[0] = 255; img->data[1] = 0; img->data[2] = 0;
     img->data[3] = 0; img->data[4] = 255; img->data[5] = 0;
     img->data[6] = 0; img->data[7] = 0; img->data[8] = 255;
@@ -189,7 +189,7 @@ FOSSIL_TEST(c_test_image_process_grayscale_basic) {
 
 FOSSIL_TEST(c_test_image_process_threshold_basic) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_GRAY8);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     img->data[0] = 100; img->data[1] = 200; img->data[2] = 50; img->data[3] = 255;
     bool ok = fossil_image_process_threshold(img, 128);
     ASSUME_ITS_TRUE(ok);
@@ -200,7 +200,7 @@ FOSSIL_TEST(c_test_image_process_threshold_basic) {
 
 FOSSIL_TEST(c_test_image_process_invert_basic) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_GRAY8);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     img->data[0] = 0; img->data[1] = 128; img->data[2] = 255; img->data[3] = 64;
     bool ok = fossil_image_process_invert(img);
     ASSUME_ITS_TRUE(ok);
@@ -211,7 +211,7 @@ FOSSIL_TEST(c_test_image_process_invert_basic) {
 
 FOSSIL_TEST(c_test_image_process_normalize_basic) {
     fossil_image_t *img = fossil_image_process_create(2, 2, FOSSIL_PIXEL_FORMAT_GRAY8);
-    ASSUME_ITS_TRUE(img != NULL);
+    ASSUME_NOT_CNULL(img);
     img->data[0] = 50; img->data[1] = 100; img->data[2] = 150; img->data[3] = 200;
     bool ok = fossil_image_process_normalize(img);
     ASSUME_ITS_TRUE(ok);
