@@ -433,11 +433,9 @@ bool fossil_image_process_flip(
     if (!image)
         return false;
 
-    size_t bytes_per_pixel = fossil_image_bytes_per_pixel(image->format);
     uint32_t w = image->width;
     uint32_t h = image->height;
     size_t c = image->channels;
-    size_t row_stride = w * c;
 
     bool is_float = (
         image->format == FOSSIL_PIXEL_FORMAT_FLOAT32 ||
