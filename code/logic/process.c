@@ -491,8 +491,7 @@ bool fossil_image_process_flip(
 
 bool fossil_image_process_rotate(
     fossil_image_t *image,
-    float degrees,
-    fossil_interp_t interp
+    float degrees
 ) {
     if (!image)
         return false;
