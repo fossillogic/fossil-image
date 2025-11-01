@@ -49,41 +49,39 @@ FOSSIL_TEARDOWN(cpp_image_io_fixture) {
 
 FOSSIL_TEST(cpp_test_image_io_load_invalid_file) {
     fossil_image_t img;
-    bool ok = fossil_image_io_load("nonexistent.bmp", "bmp", &img);
+    bool ok = fossil::image::Io::load("nonexistent.bmp", "bmp", &img);
     ASSUME_ITS_FALSE(ok);
 }
 
 FOSSIL_TEST(cpp_test_image_io_load_invalid_format) {
     fossil_image_t img;
-    bool ok = fossil_image_io_load("test.bmp", "unknown", &img);
+    bool ok = fossil::image::Io::load("test.bmp", "unknown", &img);
     ASSUME_ITS_FALSE(ok);
 }
 
 FOSSIL_TEST(cpp_test_image_io_save_invalid_format) {
-    fossil_image_t img;
-    img.width = 2; img.height = 2; img.channels = 3; img.format = FOSSIL_PIXEL_FORMAT_RGB24;
-    img.data = (uint8_t *)malloc(12); img.size = 12; img.owns_data = true;
-    bool ok = fossil_image_io_save("test.img", "unknown", &img);
+    fossil_image_t *img = fossil::image::Process::create(2, 2, FOSSIL_PIXEL_FORMAT_RGB24);
+    bool ok = fossil::image::Io::save("test.img", "unknown", img);
     ASSUME_ITS_FALSE(ok);
-    free(img.data);
+    fossil::image::Process::destroy(img);
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_invalid_type) {
-    fossil_image_t img = {0};
-    bool ok = fossil_image_io_generate(&img, "unknown", 2, 2, FOSSIL_PIXEL_FORMAT_RGB24, NULL);
+    fossil_image_t img = {};
+    bool ok = fossil::image::Io::generate(&img, "unknown", 2, 2, FOSSIL_PIXEL_FORMAT_RGB24, NULL);
     ASSUME_ITS_FALSE(ok);
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_zero_size) {
-    fossil_image_t img = {0};
-    bool ok = fossil_image_io_generate(&img, "solid", 0, 0, FOSSIL_PIXEL_FORMAT_RGB24, NULL);
+    fossil_image_t img = {};
+    bool ok = fossil::image::Io::generate(&img, "solid", 0, 0, FOSSIL_PIXEL_FORMAT_RGB24, NULL);
     ASSUME_ITS_FALSE(ok);
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_solid_rgb24) {
-    fossil_image_t img = {0};
+    fossil_image_t img = {};
     float params[3] = {128.0f, 64.0f, 32.0f}; // R, G, B
-    bool ok = fossil_image_io_generate(&img, "solid", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
+    bool ok = fossil::image::Io::generate(&img, "solid", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     for (int i = 0; i < 16 * 3; i += 3) {
@@ -95,9 +93,9 @@ FOSSIL_TEST(cpp_test_image_io_generate_solid_rgb24) {
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_gradient_gray8) {
-    fossil_image_t img = {0};
+    fossil_image_t img = {};
     float params[2] = {0.0f, 255.0f}; // start, end
-    bool ok = fossil_image_io_generate(&img, "gradient", 8, 1, FOSSIL_PIXEL_FORMAT_GRAY8, params);
+    bool ok = fossil::image::Io::generate(&img, "gradient", 8, 1, FOSSIL_PIXEL_FORMAT_GRAY8, params);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     ASSUME_ITS_EQUAL_I32(img.data[0], 0);
@@ -106,9 +104,9 @@ FOSSIL_TEST(cpp_test_image_io_generate_gradient_gray8) {
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_checker_rgb24) {
-    fossil_image_t img = {0};
+    fossil_image_t img = {};
     float params[7] = {1.0f, 255.0f, 0.0f, 0.0f, 0.0f, 255.0f, 0.0f};
-    bool ok = fossil_image_io_generate(&img, "checker", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
+    bool ok = fossil::image::Io::generate(&img, "checker", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     ASSUME_ITS_EQUAL_I32(img.data[0], 255);
@@ -121,8 +119,8 @@ FOSSIL_TEST(cpp_test_image_io_generate_checker_rgb24) {
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_noise_gray8) {
-    fossil_image_t img = {0};
-    bool ok = fossil_image_io_generate(&img, "noise", 4, 4, FOSSIL_PIXEL_FORMAT_GRAY8, NULL);
+    fossil_image_t img = {};
+    bool ok = fossil::image::Io::generate(&img, "noise", 4, 4, FOSSIL_PIXEL_FORMAT_GRAY8, NULL);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     int nonzero = 0;
@@ -133,9 +131,9 @@ FOSSIL_TEST(cpp_test_image_io_generate_noise_gray8) {
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_circle_gray8) {
-    fossil_image_t img = {0};
+    fossil_image_t img = {};
     float params[4] = {2.0f, 0.0f, 255.0f, 128.0f}; // radius, edge, fg, bg
-    bool ok = fossil_image_io_generate(&img, "circle", 5, 5, FOSSIL_PIXEL_FORMAT_GRAY8, params);
+    bool ok = fossil::image::Io::generate(&img, "circle", 5, 5, FOSSIL_PIXEL_FORMAT_GRAY8, params);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     ASSUME_ITS_TRUE((img.data[2 * 5 + 2] == 255) || (img.data[2 * 5 + 2] == 128));
@@ -143,9 +141,9 @@ FOSSIL_TEST(cpp_test_image_io_generate_circle_gray8) {
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_stripes_rgb24) {
-    fossil_image_t img = {0};
+    fossil_image_t img = {};
     float params[7] = {1.0f, 255.0f, 255.0f, 255.0f, 0.0f, 0.0f, 0.0f};
-    bool ok = fossil_image_io_generate(&img, "stripes", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
+    bool ok = fossil::image::Io::generate(&img, "stripes", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     ASSUME_ITS_EQUAL_I32(img.data[0], 255);
@@ -158,9 +156,9 @@ FOSSIL_TEST(cpp_test_image_io_generate_stripes_rgb24) {
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_vstripes_rgb24) {
-    fossil_image_t img = {0};
+    fossil_image_t img = {};
     float params[7] = {1.0f, 0.0f, 0.0f, 255.0f, 255.0f, 255.0f, 0.0f};
-    bool ok = fossil_image_io_generate(&img, "vstripes", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
+    bool ok = fossil::image::Io::generate(&img, "vstripes", 4, 4, FOSSIL_PIXEL_FORMAT_RGB24, params);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     ASSUME_ITS_EQUAL_I32(img.data[0], 0);
@@ -173,9 +171,9 @@ FOSSIL_TEST(cpp_test_image_io_generate_vstripes_rgb24) {
 }
 
 FOSSIL_TEST(cpp_test_image_io_generate_radial_gray8) {
-    fossil_image_t img = {0};
+    fossil_image_t img = {};
     float params[2] = {128.0f, 255.0f}; // inner, outer
-    bool ok = fossil_image_io_generate(&img, "radial", 5, 5, FOSSIL_PIXEL_FORMAT_GRAY8, params);
+    bool ok = fossil::image::Io::generate(&img, "radial", 5, 5, FOSSIL_PIXEL_FORMAT_GRAY8, params);
     ASSUME_ITS_TRUE(ok);
     ASSUME_ITS_TRUE(img.data != NULL);
     ASSUME_ITS_TRUE((img.data[0] == 255) || (img.data[0] == 128));
