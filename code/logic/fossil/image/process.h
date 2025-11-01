@@ -323,7 +323,6 @@ bool fossil_image_process_normalize(
 #ifdef __cplusplus
 }
 
-
 namespace fossil {
 
     namespace image {
@@ -343,8 +342,7 @@ namespace fossil {
              * @brief Create a new image with specified dimensions and format.
              *
              * Allocates and initializes a fossil_image_t structure with the given width,
-             * height, pixel format, and number of channels. The pixel buffer is allocated
-             * and zero-initialized. Returns a pointer to the new image, or NULL on failure.
+             * height, and pixel format. Returns a pointer to the new image, or NULL on failure.
              *
              * @param width Image width in pixels.
              * @param height Image height in pixels.
@@ -352,7 +350,7 @@ namespace fossil {
              * @return Pointer to the new fossil_image_t, or NULL if allocation fails.
              */
             static fossil_image_t *create(uint32_t width, uint32_t height, fossil_pixel_format_t format) {
-                return fossil_image_process_create(width, height, format);
+            return fossil_image_process_create(width, height, format);
             }
 
             /**
@@ -364,16 +362,14 @@ namespace fossil {
              * @param image Pointer to the fossil_image_t structure to destroy.
              */
             static void destroy(fossil_image_t *image) {
-                fossil_image_process_destroy(image);
+            fossil_image_process_destroy(image);
             }
 
             /**
              * @brief Resize an image to target dimensions.
              *
-             * Resizes the given image to the specified width and height using the
-             * selected interpolation mode. The pixel data is reallocated and
-             * resampled according to the interpolation algorithm. Image metadata
-             * is updated accordingly.
+             * Resizes the given image to the specified width and height using the selected
+             * interpolation mode. Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to resize.
              * @param width Target width in pixels.
@@ -382,15 +378,14 @@ namespace fossil {
              * @return true if successful, false otherwise.
              */
             static bool resize(fossil_image_t *image, uint32_t width, uint32_t height, fossil_interp_t mode) {
-                return fossil_image_process_resize(image, width, height, mode);
+            return fossil_image_process_resize(image, width, height, mode);
             }
 
             /**
              * @brief Crop an image to a specified rectangle.
              *
              * Crops the image to the rectangle defined by (x, y, width, height).
-             * The pixel buffer is updated to contain only the cropped region, and
-             * image metadata is updated.
+             * Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to crop.
              * @param x X-coordinate of the top-left corner of the crop rectangle.
@@ -400,15 +395,14 @@ namespace fossil {
              * @return true if successful, false otherwise.
              */
             static bool crop(fossil_image_t *image, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
-                return fossil_image_process_crop(image, x, y, width, height);
+            return fossil_image_process_crop(image, x, y, width, height);
             }
 
             /**
              * @brief Flip the image horizontally or vertically.
              *
-             * Flips the image in-place either horizontally, vertically, or both,
-             * depending on the boolean flags. The pixel buffer is rearranged
-             * accordingly.
+             * Flips the image in-place either horizontally, vertically, or both.
+             * Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to flip.
              * @param horizontal If true, flip horizontally.
@@ -416,31 +410,29 @@ namespace fossil {
              * @return true if successful, false otherwise.
              */
             static bool flip(fossil_image_t *image, bool horizontal, bool vertical) {
-                return fossil_image_process_flip(image, horizontal, vertical);
+            return fossil_image_process_flip(image, horizontal, vertical);
             }
 
             /**
              * @brief Rotate an image by degrees (supports arbitrary angles).
              *
              * Rotates the image by the specified angle in degrees (clockwise).
-             * The output image may be resized to fit the rotated content. Uses
-             * interpolation for pixel sampling.
+             * Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to rotate.
              * @param degrees Angle in degrees to rotate (positive is clockwise).
              * @return true if successful, false otherwise.
              */
             static bool rotate(fossil_image_t *image, float degrees) {
-                return fossil_image_process_rotate(image, degrees);
+            return fossil_image_process_rotate(image, degrees);
             }
 
             /**
              * @brief Blend two images together using a blend ratio.
              *
-             * Blends the source image into the destination image using the
-             * specified ratio. The ratio determines the weight of each image in
-             * the blend (0.0 = only dst, 1.0 = only src). Both images must have
-             * the same dimensions and format.
+             * Blends the source image into the destination image using the specified ratio.
+             * Both images must have the same dimensions and format.
+             * Returns true on success, false otherwise.
              *
              * @param dst Pointer to the destination fossil_image_t structure.
              * @param src Pointer to the source fossil_image_t structure.
@@ -448,15 +440,14 @@ namespace fossil {
              * @return true if successful, false otherwise.
              */
             static bool blend(fossil_image_t *dst, const fossil_image_t *src, float ratio) {
-                return fossil_image_process_blend(dst, src, ratio);
+            return fossil_image_process_blend(dst, src, ratio);
             }
 
             /**
              * @brief Composite overlay of one image onto another using alpha.
              *
-             * Composites the overlay image onto the destination image at position
-             * (x, y), using the specified alpha value for blending. The overlay
-             * may be partially outside the destination image.
+             * Composites the overlay image onto the destination image at position (x, y),
+             * using the specified alpha value for blending. Returns true on success, false otherwise.
              *
              * @param dst Pointer to the destination fossil_image_t structure.
              * @param overlay Pointer to the overlay fossil_image_t structure.
@@ -466,71 +457,69 @@ namespace fossil {
              * @return true if successful, false otherwise.
              */
             static bool composite(fossil_image_t *dst, const fossil_image_t *overlay, uint32_t x, uint32_t y, float alpha) {
-                return fossil_image_process_composite(dst, overlay, x, y, alpha);
+            return fossil_image_process_composite(dst, overlay, x, y, alpha);
             }
 
             /**
              * @brief Convert image to grayscale.
              *
-             * Converts the image to grayscale in-place. For color images, the
-             * channels are combined using standard luminance conversion. The pixel
-             * format and channel count are updated accordingly.
+             * Converts the image to grayscale in-place. For color images, the channels are
+             * combined using standard luminance conversion. Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to convert.
              * @return true if successful, false otherwise.
              */
             static bool grayscale(fossil_image_t *image) {
-                return fossil_image_process_grayscale(image);
+            return fossil_image_process_grayscale(image);
             }
 
             /**
              * @brief Apply binary threshold operation.
              *
-             * Applies a binary threshold to the image, setting pixels above the
-             * threshold to maximum value and below to zero. Only applicable to
-             * grayscale images.
+             * Applies a binary threshold to the image, setting pixels above the threshold
+             * to maximum value and below to zero. Only applicable to grayscale images.
+             * Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to threshold.
              * @param threshold Threshold value (0-255).
              * @return true if successful, false otherwise.
              */
             static bool threshold(fossil_image_t *image, uint8_t threshold) {
-                return fossil_image_process_threshold(image, threshold);
+            return fossil_image_process_threshold(image, threshold);
             }
 
             /**
              * @brief Invert image colors.
              *
-             * Inverts the colors of the image in-place. For grayscale, each pixel
-             * value is replaced by its complement. For color images, each channel
-             * is inverted.
+             * Inverts the colors of the image in-place. For grayscale, each pixel value is
+             * replaced by its complement. For color images, each channel is inverted.
+             * Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to invert.
              * @return true if successful, false otherwise.
              */
             static bool invert(fossil_image_t *image) {
-                return fossil_image_process_invert(image);
+            return fossil_image_process_invert(image);
             }
 
             /**
              * @brief Normalize brightness and contrast.
              *
-             * Normalizes the image's brightness and contrast by stretching pixel
-             * values to the full available range. Useful for enhancing low-contrast
-             * images.
+             * Normalizes the image's brightness and contrast by stretching pixel values
+             * to the full available range. Useful for enhancing low-contrast images.
+             * Returns true on success, false otherwise.
              *
              * @param image Pointer to the fossil_image_t structure to normalize.
              * @return true if successful, false otherwise.
              */
             static bool normalize(fossil_image_t *image) {
-                return fossil_image_process_normalize(image);
+            return fossil_image_process_normalize(image);
             }
-
         };
 
     } // namespace image
 
-} // namespace fossil
+}
 
 #endif
 
