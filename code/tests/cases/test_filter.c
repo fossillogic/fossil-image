@@ -51,7 +51,7 @@ FOSSIL_TEST(c_test_image_filter_convolve3x3_basic) {
     fossil_image_t *img = fossil_image_process_create(3, 3, FOSSIL_PIXEL_FORMAT_GRAY8);
     ASSUME_NOT_CNULL(img);
     for (int i = 0; i < 9; ++i) img->data[i] = i * 10;
-    float kernel[3][3] = {
+    const float kernel[3][3] = {
         {0, 1, 0},
         {1, -4, 1},
         {0, 1, 0}
@@ -62,7 +62,7 @@ FOSSIL_TEST(c_test_image_filter_convolve3x3_basic) {
 }
 
 FOSSIL_TEST(c_test_image_filter_convolve3x3_null_image) {
-    float kernel[3][3] = {{0}};
+    const float kernel[3][3] = {{0}};
     bool ok = fossil_image_filter_convolve3x3(NULL, kernel, 1.0f, 0.0f);
     ASSUME_ITS_FALSE(ok);
 }
