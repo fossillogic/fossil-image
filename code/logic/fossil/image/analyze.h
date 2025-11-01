@@ -258,6 +258,8 @@ namespace fossil {
             }
         };
 
+    } // namespace image
+
 } // namespace fossil
 
 #endif
