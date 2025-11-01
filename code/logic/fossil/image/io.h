@@ -77,7 +77,7 @@ bool fossil_image_io_generate(
 
 #ifdef __cplusplus
 }
-
+#include <string>
 
 namespace fossil {
 
@@ -90,11 +90,11 @@ namespace fossil {
              * Supported formats: "bmp", "ppm"
              */
             static bool load(
-            const char *filename,
-            const char *format_id,
+            const std::string &filename,
+            const std::string &format_id,
             fossil_image_t *out_image
             ) {
-            return fossil_image_io_load(filename, format_id, out_image);
+            return fossil_image_io_load(filename.c_str(), format_id.c_str(), out_image);
             }
 
             /**
@@ -102,11 +102,11 @@ namespace fossil {
              * Supported formats: "bmp", "ppm"
              */
             static bool save(
-            const char *filename,
-            const char *format_id,
+            const std::string &filename,
+            const std::string &format_id,
             const fossil_image_t *image
             ) {
-            return fossil_image_io_save(filename, format_id, image);
+            return fossil_image_io_save(filename.c_str(), format_id.c_str(), image);
             }
 
             /**
@@ -121,15 +121,14 @@ namespace fossil {
              */
             static bool generate(
             fossil_image_t *out_image,
-            const char *type_id,
+            const std::string &type_id,
             uint32_t width,
             uint32_t height,
             fossil_pixel_format_t format,
             const float *params
             ) {
-            return fossil_image_io_generate(out_image, type_id, width, height, format, params);
+            return fossil_image_io_generate(out_image, type_id.c_str(), width, height, format, params);
             }
-        
         };
 
     } // namespace image
