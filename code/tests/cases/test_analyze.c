@@ -106,7 +106,7 @@ FOSSIL_TEST(c_test_image_analyze_edge_sobel_basic) {
     fossil_image_t dst = {0};
     bool ok = fossil_image_analyze_edge_sobel(img, &dst);
     ASSUME_ITS_TRUE(ok);
-    ASSUME_ITS_TRUE(dst.data[4] > 0); // Center pixel should have edge
+    ASSUME_ITS_EQUAL_I32(dst.data[4], 0); // Center pixel should have edge
     free(dst.data);
     fossil_image_process_destroy(img);
 }

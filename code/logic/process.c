@@ -170,20 +170,46 @@ fossil_image_t *fossil_image_process_create(
 
 void fossil_image_process_destroy(fossil_image_t *image) {
     if (!image) return;
+
     if (image->owns_data) {
         switch (image->format) {
             case FOSSIL_PIXEL_FORMAT_FLOAT32:
             case FOSSIL_PIXEL_FORMAT_FLOAT32_RGB:
             case FOSSIL_PIXEL_FORMAT_FLOAT32_RGBA:
-                if (image->fdata)
+                if (image->fdata) {
                     free(image->fdata);
+                    image->fdata = NULL;
+                }
                 break;
             default:
-                if (image->data)
+                if (image->data) {
                     free(image->data);
+                    image->data = NULL;
+                }
                 break;
         }
     }
+
+    // Reset all pointers and fields to avoid dangling references
+    image->data = NULL;
+    image->fdata = NULL;
+    image->userdata = NULL;
+    image->size = 0;
+    image->width = 0;
+    image->height = 0;
+    image->channels = 0;
+    image->channels_mask = 0;
+    image->dpi_x = 0.0;
+    image->dpi_y = 0.0;
+    image->exposure = 0.0;
+    image->owns_data = false;
+    image->is_ai_generated = false;
+    image->name[0] = '\0';
+    image->author[0] = '\0';
+    image->creation_os[0] = '\0';
+    image->software[0] = '\0';
+    image->creation_date[0] = '\0';
+
     free(image);
 }
 

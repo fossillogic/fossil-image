@@ -805,13 +805,35 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
     out_image->size = width * height * channels * pixel_bytes;
     out_image->owns_data = true;
 
-    if (is_float)
-        out_image->fdata = (float *)malloc(out_image->size);
-    else
-        out_image->data = (uint8_t *)malloc(out_image->size);
+    // Free previous memory if owned and pointers are not NULL
+    if (out_image->owns_data) {
+        if (out_image->fdata) {
+            free(out_image->fdata);
+            out_image->fdata = NULL;
+        }
+        if (out_image->data) {
+            free(out_image->data);
+            out_image->data = NULL;
+        }
+    }
 
-    if ((is_float && !out_image->fdata) || (!is_float && !out_image->data))
-        return false;
+    // Always initialize pointers to NULL before allocation
+    out_image->fdata = NULL;
+    out_image->data = NULL;
+
+    if (is_float) {
+        out_image->fdata = (float *)calloc(width * height * channels, sizeof(float));
+        if (!out_image->fdata) {
+            out_image->size = 0;
+            return false;
+        }
+    } else {
+        out_image->data = (uint8_t *)calloc(width * height * channels * pixel_bytes, 1);
+        if (!out_image->data) {
+            out_image->size = 0;
+            return false;
+        }
+    }
 
     // Solid fill
     if (strcmp(type_id, "solid") == 0) {
@@ -840,7 +862,7 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
         return true;
     }
 
-    // Gradient
+    // Gradient (vertical for multi-row, horizontal for single row)
     if (strcmp(type_id, "gradient") == 0) {
         if (is_float) {
             float start[4] = {0.0f}, end[4] = {1.0f,1.0f,1.0f,1.0f};
@@ -849,10 +871,13 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
                 for (uint32_t i = 0; i < channels; ++i) end[i] = params[channels + i];
             }
             for (uint32_t y = 0; y < height; ++y) {
-                float t = (float)y / (float)(height-1);
-                for (uint32_t x = 0; x < width; ++x)
+                float t = (height == 1) ? 0.0f : (float)y / (float)(height-1);
+                for (uint32_t x = 0; x < width; ++x) {
+                    float tx = (width == 1) ? 0.0f : (float)x / (float)(width-1);
+                    float interp = (height == 1) ? tx : t;
                     for (uint32_t ch = 0; ch < channels; ++ch)
-                        out_image->fdata[(y*width + x)*channels + ch] = (1.0f-t)*start[ch] + t*end[ch];
+                        out_image->fdata[(y*width + x)*channels + ch] = (1.0f-interp)*start[ch] + interp*end[ch];
+                }
             }
         } else if (pixel_bytes == 2) {
             uint16_t start[4] = {0}, end[4] = {65535,65535,65535,65535};
@@ -861,24 +886,31 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
                 for (uint32_t i = 0; i < channels; ++i) end[i] = (uint16_t)params[channels + i];
             }
             for (uint32_t y = 0; y < height; ++y) {
-                float t = (float)y / (float)(height-1);
-                for (uint32_t x = 0; x < width; ++x)
+                float t = (height == 1) ? 0.0f : (float)y / (float)(height-1);
+                for (uint32_t x = 0; x < width; ++x) {
+                    float tx = (width == 1) ? 0.0f : (float)x / (float)(width-1);
+                    float interp = (height == 1) ? tx : t;
                     for (uint32_t ch = 0; ch < channels; ++ch)
                         ((uint16_t *)out_image->data)[(y*width + x)*channels + ch] =
-                            (uint16_t)((1.0f-t)*start[ch] + t*end[ch]);
+                            (uint16_t)((1.0f-interp)*start[ch] + interp*end[ch]);
+                }
             }
         } else {
             uint8_t start[4] = {0}, end[4] = {255,255,255,255};
             if (params) {
-                for (uint32_t i = 0; i < channels; ++i) start[i] = (uint8_t)params[i];
-                for (uint32_t i = 0; i < channels; ++i) end[i] = (uint8_t)params[channels + i];
+                for (uint32_t i = 0; i < channels; ++i) start[i] = (uint8_t)fminf(fmaxf(params[i], 0.0f), 255.0f);
+                for (uint32_t i = 0; i < channels; ++i) end[i] = (uint8_t)fminf(fmaxf(params[channels + i], 0.0f), 255.0f);
             }
             for (uint32_t y = 0; y < height; ++y) {
-                float t = (float)y / (float)(height-1);
-                for (uint32_t x = 0; x < width; ++x)
-                    for (uint32_t ch = 0; ch < channels; ++ch)
+                float t = (height == 1) ? 0.0f : (float)y / (float)(height-1);
+                for (uint32_t x = 0; x < width; ++x) {
+                    float tx = (width == 1) ? 0.0f : (float)x / (float)(width-1);
+                    float interp = (height == 1) ? tx : t;
+                    for (uint32_t ch = 0; ch < channels; ++ch) {
                         out_image->data[(y*width + x)*channels + ch] =
-                            (uint8_t)((1.0f-t)*start[ch] + t*end[ch]);
+                            (uint8_t)fminf(fmaxf((1.0f-interp)*start[ch] + interp*end[ch], 0.0f), 255.0f);
+                    }
+                }
             }
         }
         return true;
@@ -888,6 +920,7 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
     if (strcmp(type_id, "checker") == 0) {
         uint32_t tile = 8;
         if (params) tile = (uint32_t)params[0];
+        if (tile == 0) tile = 1;
         if (is_float) {
             float c1[4] = {0.0f}, c2[4] = {1.0f,1.0f,1.0f,1.0f};
             if (params && params[1]) for (uint32_t i = 0; i < channels; ++i) c1[i] = params[i+1];
@@ -912,8 +945,10 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
                 }
         } else {
             uint8_t c1[4] = {0}, c2[4] = {255,255,255,255};
-            if (params && params[1]) for (uint32_t i = 0; i < channels; ++i) c1[i] = (uint8_t)params[i+1];
-            if (params && params[1+channels]) for (uint32_t i = 0; i < channels; ++i) c2[i] = (uint8_t)params[i+1+channels];
+            if (params && params[1]) for (uint32_t i = 0; i < channels; ++i)
+                c1[i] = (uint8_t)fminf(fmaxf(params[i+1], 0.0f), 255.0f);
+            if (params && params[1+channels]) for (uint32_t i = 0; i < channels; ++i)
+                c2[i] = (uint8_t)fminf(fmaxf(params[i+1+channels], 0.0f), 255.0f);
             for (uint32_t y = 0; y < height; ++y)
                 for (uint32_t x = 0; x < width; ++x) {
                     bool is_c1 = ((x/tile + y/tile) % 2 == 0);
@@ -945,10 +980,15 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
         float cx = width / 2.0f;
         float cy = height / 2.0f;
         float radius = (params && params[0] > 0.0f) ? params[0] : (width < height ? width : height) / 4.0f;
-        float edge = (params && params[1] > 0.0f) ? params[1] : 0.0f; // edge softness
+        float edge = (params && params[1] > 0.0f) ? params[1] : 0.0f;
         float c_in[4] = {1.0f, 1.0f, 1.0f, 1.0f}, c_out[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        if (params && params[2]) for (uint32_t i = 0; i < channels; ++i) c_in[i] = params[2 + i];
-        if (params && params[2 + channels]) for (uint32_t i = 0; i < channels; ++i) c_out[i] = params[2 + channels + i];
+        if (params && channels == 1) {
+            if (params[2]) c_in[0] = params[2];
+            if (params[3]) c_out[0] = params[3];
+        } else if (params && channels > 1) {
+            for (uint32_t i = 0; i < channels; ++i) c_in[i] = params[2 + i];
+            for (uint32_t i = 0; i < channels; ++i) c_out[i] = params[2 + channels + i];
+        }
         for (uint32_t y = 0; y < height; ++y) {
             for (uint32_t x = 0; x < width; ++x) {
                 float dx = x - cx, dy = y - cy;
@@ -966,7 +1006,7 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
                             (uint16_t)(((1.0f - t) * c_in[ch] + t * c_out[ch]) * 65535.0f);
                     else
                         out_image->data[(y * width + x) * channels + ch] =
-                            (uint8_t)(((1.0f - t) * c_in[ch] + t * c_out[ch]) * 255.0f);
+                            (uint8_t)fminf(fmaxf(((1.0f - t) * c_in[ch] + t * c_out[ch]), 0.0f), 255.0f);
                 }
             }
         }
@@ -976,9 +1016,15 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
     // Horizontal stripes
     if (strcmp(type_id, "stripes") == 0) {
         uint32_t stripe_height = (params && params[0] > 0.0f) ? (uint32_t)params[0] : 8;
+        if (stripe_height == 0) stripe_height = 1;
         float c1[4] = {1.0f, 1.0f, 1.0f, 1.0f}, c2[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        if (params && params[1]) for (uint32_t i = 0; i < channels; ++i) c1[i] = params[1 + i];
-        if (params && params[1 + channels]) for (uint32_t i = 0; i < channels; ++i) c2[i] = params[1 + channels + i];
+        if (params && channels == 1) {
+            if (params[1]) c1[0] = params[1];
+            if (params[2]) c2[0] = params[2];
+        } else if (params && channels > 1) {
+            for (uint32_t i = 0; i < channels; ++i) c1[i] = params[1 + i];
+            for (uint32_t i = 0; i < channels; ++i) c2[i] = params[1 + channels + i];
+        }
         for (uint32_t y = 0; y < height; ++y) {
             bool is_c1 = ((y / stripe_height) % 2 == 0);
             for (uint32_t x = 0; x < width; ++x) {
@@ -990,7 +1036,7 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
                             (uint16_t)((is_c1 ? c1[ch] : c2[ch]) * 65535.0f);
                     else
                         out_image->data[(y * width + x) * channels + ch] =
-                            (uint8_t)((is_c1 ? c1[ch] : c2[ch]) * 255.0f);
+                            (uint8_t)fminf(fmaxf((is_c1 ? c1[ch] : c2[ch]), 0.0f), 255.0f);
                 }
             }
         }
@@ -1000,9 +1046,15 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
     // Vertical stripes
     if (strcmp(type_id, "vstripes") == 0) {
         uint32_t stripe_width = (params && params[0] > 0.0f) ? (uint32_t)params[0] : 8;
+        if (stripe_width == 0) stripe_width = 1;
         float c1[4] = {1.0f, 1.0f, 1.0f, 1.0f}, c2[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        if (params && params[1]) for (uint32_t i = 0; i < channels; ++i) c1[i] = params[1 + i];
-        if (params && params[1 + channels]) for (uint32_t i = 0; i < channels; ++i) c2[i] = params[1 + channels + i];
+        if (params && channels == 1) {
+            if (params[1]) c1[0] = params[1];
+            if (params[2]) c2[0] = params[2];
+        } else if (params && channels > 1) {
+            for (uint32_t i = 0; i < channels; ++i) c1[i] = params[1 + i];
+            for (uint32_t i = 0; i < channels; ++i) c2[i] = params[1 + channels + i];
+        }
         for (uint32_t y = 0; y < height; ++y) {
             for (uint32_t x = 0; x < width; ++x) {
                 bool is_c1 = ((x / stripe_width) % 2 == 0);
@@ -1014,7 +1066,7 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
                             (uint16_t)((is_c1 ? c1[ch] : c2[ch]) * 65535.0f);
                     else
                         out_image->data[(y * width + x) * channels + ch] =
-                            (uint8_t)((is_c1 ? c1[ch] : c2[ch]) * 255.0f);
+                            (uint8_t)fminf(fmaxf((is_c1 ? c1[ch] : c2[ch]), 0.0f), 255.0f);
                 }
             }
         }
@@ -1026,8 +1078,14 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
         float cx = width / 2.0f;
         float cy = height / 2.0f;
         float max_radius = sqrtf(cx * cx + cy * cy);
+        // Correct max_radius to be the distance from center to farthest corner
+        float max_corner_dist = sqrtf(fmaxf(cx * cx + cy * cy, fmaxf((width - cx) * (width - cx) + cy * cy, fmaxf(cx * cx + (height - cy) * (height - cy), (width - cx) * (width - cx) + (height - cy) * (height - cy)))));
+        max_radius = max_corner_dist;
         float start[4] = {0.0f}, end[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-        if (params) {
+        if (params && channels == 1) {
+            if (params[0]) start[0] = params[0];
+            if (params[1]) end[0] = params[1];
+        } else if (params && channels > 1) {
             for (uint32_t i = 0; i < channels; ++i) start[i] = params[i];
             for (uint32_t i = 0; i < channels; ++i) end[i] = params[channels + i];
         }
@@ -1044,12 +1102,23 @@ bool fossil_image_io_generate(fossil_image_t *out_image, const char *type_id, ui
                             (uint16_t)(((1.0f - t) * start[ch] + t * end[ch]) * 65535.0f);
                     else
                         out_image->data[(y * width + x) * channels + ch] =
-                            (uint8_t)(((1.0f - t) * start[ch] + t * end[ch]) * 255.0f);
+                            (uint8_t)fminf(fmaxf(((1.0f - t) * start[ch] + t * end[ch]), 0.0f), 255.0f);
                 }
             }
         }
         return true;
     }
+
+    // If no type matched, free memory to avoid leaks
+    if (is_float && out_image->fdata) {
+        free(out_image->fdata);
+        out_image->fdata = NULL;
+    }
+    if (!is_float && out_image->data) {
+        free(out_image->data);
+        out_image->data = NULL;
+    }
+    out_image->size = 0;
 
     return false;
 }

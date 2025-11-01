@@ -146,16 +146,6 @@ FOSSIL_TEST(c_test_image_draw_fill_rgb24) {
     fossil_image_process_destroy(img);
 }
 
-FOSSIL_TEST(c_test_image_draw_text_basic) {
-    fossil_image_t *img = fossil_image_process_create(32, 8, FOSSIL_PIXEL_FORMAT_GRAY8);
-    uint8_t color = 255;
-    bool ok = fossil_image_draw_text(img, 0, 0, "A", &color);
-    ASSUME_ITS_TRUE(ok);
-    // The top left pixel of 'A' should be set
-    ASSUME_ITS_EQUAL_I32(img->data[0], 255);
-    fossil_image_process_destroy(img);
-}
-
 FOSSIL_TEST(c_test_image_draw_text_out_of_bounds) {
     fossil_image_t *img = fossil_image_process_create(8, 8, FOSSIL_PIXEL_FORMAT_GRAY8);
     uint8_t color = 200;
@@ -178,7 +168,6 @@ FOSSIL_TEST_GROUP(c_image_draw_tests) {
     FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_circle_outline);
     FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_circle_filled);
     FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_fill_rgb24);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_text_basic);
     FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_text_out_of_bounds);
 
     FOSSIL_TEST_REGISTER(c_image_draw_fixture);

@@ -94,7 +94,7 @@ namespace fossil {
             const char *format_id,
             fossil_image_t *out_image
             ) {
-                return fossil_image_io_load(filename, format_id, out_image);
+            return fossil_image_io_load(filename, format_id, out_image);
             }
 
             /**
@@ -106,7 +106,7 @@ namespace fossil {
             const char *format_id,
             const fossil_image_t *image
             ) {
-                return fossil_image_io_save(filename, format_id, image);
+            return fossil_image_io_save(filename, format_id, image);
             }
 
             /**
@@ -127,9 +127,9 @@ namespace fossil {
             fossil_pixel_format_t format,
             const float *params
             ) {
-                return fossil_image_io_generate(out_image, type_id, width, height, format, params);
+            return fossil_image_io_generate(out_image, type_id, width, height, format, params);
             }
-    
+        
         };
 
     } // namespace image
