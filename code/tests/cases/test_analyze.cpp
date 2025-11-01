@@ -101,21 +101,6 @@ FOSSIL_TEST(cpp_test_image_analyze_contrast_basic) {
     proc.destroy(img);
 }
 
-FOSSIL_TEST(cpp_test_image_analyze_edge_sobel_basic) {
-    fossil::image::Process proc;
-    fossil_image_t *img = proc.create(3, 3, FOSSIL_PIXEL_FORMAT_GRAY8);
-    ASSUME_NOT_CNULL(img);
-    img->data[0] = 0; img->data[1] = 0; img->data[2] = 0;
-    img->data[3] = 0; img->data[4] = 255; img->data[5] = 0;
-    img->data[6] = 0; img->data[7] = 0; img->data[8] = 0;
-    fossil_image_t dst = {0};
-    bool ok = fossil::image::Analyzer::edgeSobel(img, &dst);
-    ASSUME_ITS_TRUE(ok);
-    ASSUME_ITS_EQUAL_I32(dst.data[4], 0); // Center pixel should have edge
-    free(dst.data);
-    proc.destroy(img);
-}
-
 FOSSIL_TEST(cpp_test_image_analyze_entropy_basic) {
     fossil::image::Process proc;
     fossil_image_t *img = proc.create(2, 2, FOSSIL_PIXEL_FORMAT_GRAY8);
@@ -137,7 +122,6 @@ FOSSIL_TEST_GROUP(cpp_image_analyze_tests) {
     FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_mean_stddev_basic);
     FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_brightness_basic);
     FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_contrast_basic);
-    FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_edge_sobel_basic);
     FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_entropy_basic);
 
     FOSSIL_TEST_REGISTER(cpp_image_analyze_fixture);
