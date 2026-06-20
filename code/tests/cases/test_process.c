@@ -224,24 +224,24 @@ FOSSIL_TEST(c_test_image_process_normalize_basic) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_image_process_tests) {
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_create_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_create_zero_size);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_destroy_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_resize_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_resize_invalid);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_resize_null_image);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_crop_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_crop_out_of_bounds);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_flip_horizontal);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_flip_vertical);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_rotate_90);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_blend_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_blend_mismatched_size);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_composite_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_grayscale_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_threshold_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_invert_basic);
-    FOSSIL_TEST_ADD(c_image_process_fixture, c_test_image_process_normalize_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_create_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_create_zero_size);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_destroy_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_resize_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_resize_invalid);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_resize_null_image);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_crop_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_crop_out_of_bounds);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_flip_horizontal);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_flip_vertical);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_rotate_90);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_blend_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_blend_mismatched_size);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_composite_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_grayscale_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_threshold_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_invert_basic);
+    FOSSIL_ADD_TEST(c_image_process_fixture, c_test_image_process_normalize_basic);
 
-    FOSSIL_TEST_REGISTER(c_image_process_fixture);
+    FOSSIL_ADD_SUITE(c_image_process_fixture);
 } // end of tests

@@ -139,17 +139,17 @@ FOSSIL_TEST(cpp_test_image_filter_emboss_null_image) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_image_filter_tests) {
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_convolve3x3_basic);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_convolve3x3_null_image);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_blur_basic);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_blur_large_radius);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_sharpen_basic);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_edge_basic);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_emboss_basic);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_blur_too_small_image);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_sharpen_null_image);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_edge_null_image);
-    FOSSIL_TEST_ADD(cpp_image_filter_fixture, cpp_test_image_filter_emboss_null_image);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_convolve3x3_basic);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_convolve3x3_null_image);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_blur_basic);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_blur_large_radius);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_sharpen_basic);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_edge_basic);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_emboss_basic);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_blur_too_small_image);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_sharpen_null_image);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_edge_null_image);
+    FOSSIL_ADD_TEST(cpp_image_filter_fixture, cpp_test_image_filter_emboss_null_image);
 
-    FOSSIL_TEST_REGISTER(cpp_image_filter_fixture);
+    FOSSIL_ADD_SUITE(cpp_image_filter_fixture);
 } // end of tests

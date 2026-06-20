@@ -177,18 +177,18 @@ FOSSIL_TEST(cpp_test_image_color_to_grayscale_already_gray) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_image_color_tests) {
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_brightness_increase);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_brightness_decrease);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_contrast_increase);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_contrast_reduce);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_gamma_basic);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_gamma_invalid);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_hsv_adjust_hue_shift);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_hsv_adjust_saturation);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_channel_swap_basic);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_channel_swap_invalid);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_to_grayscale_basic);
-    FOSSIL_TEST_ADD(cpp_image_color_fixture, cpp_test_image_color_to_grayscale_already_gray);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_brightness_increase);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_brightness_decrease);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_contrast_increase);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_contrast_reduce);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_gamma_basic);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_gamma_invalid);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_hsv_adjust_hue_shift);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_hsv_adjust_saturation);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_channel_swap_basic);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_channel_swap_invalid);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_to_grayscale_basic);
+    FOSSIL_ADD_TEST(cpp_image_color_fixture, cpp_test_image_color_to_grayscale_already_gray);
 
-    FOSSIL_TEST_REGISTER(cpp_image_color_fixture);
+    FOSSIL_ADD_SUITE(cpp_image_color_fixture);
 } // end of tests

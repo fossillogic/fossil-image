@@ -159,16 +159,16 @@ FOSSIL_TEST(c_test_image_draw_text_out_of_bounds) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_image_draw_tests) {
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_pixel_rgb24);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_pixel_out_of_bounds);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_line_horizontal);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_line_vertical);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_rect_outline);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_rect_filled);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_circle_outline);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_circle_filled);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_fill_rgb24);
-    FOSSIL_TEST_ADD(c_image_draw_fixture, c_test_image_draw_text_out_of_bounds);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_pixel_rgb24);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_pixel_out_of_bounds);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_line_horizontal);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_line_vertical);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_rect_outline);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_rect_filled);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_circle_outline);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_circle_filled);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_fill_rgb24);
+    FOSSIL_ADD_TEST(c_image_draw_fixture, c_test_image_draw_text_out_of_bounds);
 
-    FOSSIL_TEST_REGISTER(c_image_draw_fixture);
+    FOSSIL_ADD_SUITE(c_image_draw_fixture);
 } // end of tests

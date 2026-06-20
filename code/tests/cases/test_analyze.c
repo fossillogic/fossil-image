@@ -127,12 +127,12 @@ FOSSIL_TEST(c_test_image_analyze_entropy_basic) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_image_analyze_tests) {
-    FOSSIL_TEST_ADD(c_image_analyze_fixture, c_test_image_analyze_histogram_basic);
-    FOSSIL_TEST_ADD(c_image_analyze_fixture, c_test_image_analyze_mean_stddev_basic);
-    FOSSIL_TEST_ADD(c_image_analyze_fixture, c_test_image_analyze_brightness_basic);
-    FOSSIL_TEST_ADD(c_image_analyze_fixture, c_test_image_analyze_contrast_basic);
-    FOSSIL_TEST_ADD(c_image_analyze_fixture, c_test_image_analyze_edge_sobel_basic);
-    FOSSIL_TEST_ADD(c_image_analyze_fixture, c_test_image_analyze_entropy_basic);
+    FOSSIL_ADD_TEST(c_image_analyze_fixture, c_test_image_analyze_histogram_basic);
+    FOSSIL_ADD_TEST(c_image_analyze_fixture, c_test_image_analyze_mean_stddev_basic);
+    FOSSIL_ADD_TEST(c_image_analyze_fixture, c_test_image_analyze_brightness_basic);
+    FOSSIL_ADD_TEST(c_image_analyze_fixture, c_test_image_analyze_contrast_basic);
+    FOSSIL_ADD_TEST(c_image_analyze_fixture, c_test_image_analyze_edge_sobel_basic);
+    FOSSIL_ADD_TEST(c_image_analyze_fixture, c_test_image_analyze_entropy_basic);
 
-    FOSSIL_TEST_REGISTER(c_image_analyze_fixture);
+    FOSSIL_ADD_SUITE(c_image_analyze_fixture);
 } // end of tests

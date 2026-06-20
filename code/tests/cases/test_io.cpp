@@ -184,19 +184,19 @@ FOSSIL_TEST(cpp_test_image_io_generate_radial_gray8) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_image_io_tests) {
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_load_invalid_file);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_load_invalid_format);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_save_invalid_format);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_invalid_type);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_zero_size);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_solid_rgb24);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_gradient_gray8);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_checker_rgb24);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_noise_gray8);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_circle_gray8);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_stripes_rgb24);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_vstripes_rgb24);
-    FOSSIL_TEST_ADD(cpp_image_io_fixture, cpp_test_image_io_generate_radial_gray8);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_load_invalid_file);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_load_invalid_format);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_save_invalid_format);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_invalid_type);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_zero_size);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_solid_rgb24);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_gradient_gray8);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_checker_rgb24);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_noise_gray8);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_circle_gray8);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_stripes_rgb24);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_vstripes_rgb24);
+    FOSSIL_ADD_TEST(cpp_image_io_fixture, cpp_test_image_io_generate_radial_gray8);
 
-    FOSSIL_TEST_REGISTER(cpp_image_io_fixture);
+    FOSSIL_ADD_SUITE(cpp_image_io_fixture);
 } // end of tests

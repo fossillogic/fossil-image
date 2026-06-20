@@ -118,11 +118,11 @@ FOSSIL_TEST(cpp_test_image_analyze_entropy_basic) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_image_analyze_tests) {
-    FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_histogram_basic);
-    FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_mean_stddev_basic);
-    FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_brightness_basic);
-    FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_contrast_basic);
-    FOSSIL_TEST_ADD(cpp_image_analyze_fixture, cpp_test_image_analyze_entropy_basic);
+    FOSSIL_ADD_TEST(cpp_image_analyze_fixture, cpp_test_image_analyze_histogram_basic);
+    FOSSIL_ADD_TEST(cpp_image_analyze_fixture, cpp_test_image_analyze_mean_stddev_basic);
+    FOSSIL_ADD_TEST(cpp_image_analyze_fixture, cpp_test_image_analyze_brightness_basic);
+    FOSSIL_ADD_TEST(cpp_image_analyze_fixture, cpp_test_image_analyze_contrast_basic);
+    FOSSIL_ADD_TEST(cpp_image_analyze_fixture, cpp_test_image_analyze_entropy_basic);
 
-    FOSSIL_TEST_REGISTER(cpp_image_analyze_fixture);
+    FOSSIL_ADD_SUITE(cpp_image_analyze_fixture);
 } // end of tests
