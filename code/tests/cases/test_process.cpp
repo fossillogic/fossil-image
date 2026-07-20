@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 
 #include "fossil/image/framework.h"
 
@@ -224,24 +224,24 @@ FOSSIL_TEST(cpp_test_image_process_normalize_basic) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_image_process_tests) {
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_create_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_create_zero_size);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_destroy_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_resize_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_resize_invalid);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_resize_null_image);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_crop_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_crop_out_of_bounds);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_flip_horizontal);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_flip_vertical);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_rotate_90);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_blend_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_blend_mismatched_size);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_composite_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_grayscale_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_threshold_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_invert_basic);
-    FOSSIL_TEST_ADD(cpp_image_process_fixture, cpp_test_image_process_normalize_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_create_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_create_zero_size);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_destroy_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_resize_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_resize_invalid);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_resize_null_image);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_crop_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_crop_out_of_bounds);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_flip_horizontal);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_flip_vertical);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_rotate_90);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_blend_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_blend_mismatched_size);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_composite_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_grayscale_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_threshold_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_invert_basic);
+    FOSSIL_ADD_TEST(cpp_image_process_fixture, cpp_test_image_process_normalize_basic);
 
-    FOSSIL_TEST_REGISTER(cpp_image_process_fixture);
+    FOSSIL_ADD_SUITE(cpp_image_process_fixture);
 } // end of tests
